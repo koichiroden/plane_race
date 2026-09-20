@@ -1,0 +1,38 @@
+{
+  "slug": "osaka_kyoto",
+  "title_line1": "大阪 → 京都",
+  "title_line2": "どっちが早い!? 電車最速バトル",
+  "start_name": "大阪",
+  "end_label": "京都",
+  "compress_sec_per_min": 0.6,
+  "intro_sec": 2.0,
+  "outro_hold_sec": 4.0,
+  "routes": [
+    {
+      "key": "route_a",
+      "name": "JR京都線(新快速)",
+      "short_name": "JR新快速",
+      "color": [246, 139, 30],
+      "stations": [
+        {"line": "JR京都線", "name": "大阪", "t_min": 0, "popup": true},
+        {"line": "JR京都線", "name": "新大阪", "t_min": 4, "popup": false},
+        {"line": "JR京都線", "name": "高槻", "t_min": 17, "popup": true},
+        {"line": "JR京都線", "name": "長岡京", "t_min": 24, "popup": false},
+        {"line": "JR京都線", "name": "京都", "t_min": 28, "popup": true}
+      ]
+    },
+    {
+      "key": "route_b",
+      "name": "阪急京都線(特急)",
+      "short_name": "阪急特急",
+      "color": [143, 36, 105],
+      "stations": [
+        {"line": "阪急京都線", "name": "大阪梅田", "t_min": 0, "popup": true},
+        {"line": "阪急京都線", "name": "十三", "t_min": 3, "popup": false},
+        {"line": "阪急京都線", "name": "茨木市", "t_min": 20, "popup": true},
+        {"line": "阪急京都線", "name": "長岡天神", "t_min": 33, "popup": false},
+        {"line": "阪急京都線", "name": "京都河原町", "t_min": 43, "popup": true}
+      ]
+    }
+  ]
+}

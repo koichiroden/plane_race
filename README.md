@@ -160,7 +160,13 @@ python3 -m race_video.cli configs/tokyo_fukuoka_plane_vs_shinkansen.json
 `t_start`/`t_end`(動画の共有タイムライン上の分数)、`label`・`popup`
 (ポップアップ表示するか)を指定できます。`map_extent: "japan"` を
 configのトップレベルに指定すると、背景地図が関西圏ではなく日本全国の
-海岸線(`data/coastline_japan.geojson`)になります。
+海岸線(`data/coastline_japan.geojson`)になり、かつ**出発地・到着地・
+経路がちょうど画角に収まるように、動画ごとに自動でズームレベルが
+計算されます**(東京〜札幌のような縦長のペアも、東京〜福岡のような
+横長のペアも、それぞれ画面いっぱいに収まるように調整されます)。日本
+全体を常に同じ縮尺で表示したい場合は、代わりに `map_extent: "japan_fixed"`
+を指定してください(出発地・到着地が近い/遠いに関わらず、常に北海道
+〜沖縄までの固定範囲で表示されます)。
 
 このモードのconfigは手で書くよりも、前述の全国版ビルダーで組み立てて
 書き出すことを想定しています(`configs/tokyo_fukuoka_plane_vs_shinkansen.json`
