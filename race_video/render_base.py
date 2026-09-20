@@ -249,7 +249,7 @@ def render_base_map(config, paths, geojson_path="data/routes.geojson"):
     for route in reversed(route_list):
         color = tuple(route["color"])
         pts = [project(proj, lon, lat) for lon, lat in route["polyline"]]
-        draw_glow_polyline(canvas, pts, color, width=10, glow_width=34, glow_alpha=90)
+        draw_glow_polyline(canvas, pts, color, width=6, glow_width=22, glow_alpha=90)
 
     draw = ImageDraw.Draw(canvas)
     f_station = font(FONT_BOLD, 26)

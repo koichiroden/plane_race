@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from .geo import project, CANVAS_W, CANVAS_H, SAFE_BOTTOM_Y
 from .motion import RouteMotion
 from .commentary import build_events, write_script_files
-from .flight_route import leg_icon_at
+from .flight_route import leg_icon_at, leg_status_at
 from . import fonts as _fonts
 
 FONT_BOLD, _FONT_REGULAR, FONT_BLACK = _fonts.resolve()
@@ -238,6 +238,31 @@ def draw_popup(canvas_rgba, proj, station, elapsed, color):
     canvas_rgba.alpha_composite(layer)
 
 
+def draw_leg_status(canvas_rgba, x, y, text, color, icon_size=54):
+    """アイコンのすぐそばに、現在の状態(「搭乗待ち」「鉄道移動中」等)を
+    常時(フェードなしで)表示する小さなラベル。draw_popup() の通過駅
+    ポップアップとは別物で、legsモードの区間(leg)を持つルートの
+    アイコンの上に、そのアイコンが今何をしている最中かを示す。
+    "legs" を持たない従来ルート、または text が空の場合は何も描かない
+    (呼び出し側でチェック済みだが、防御的に空文字はここでも無視する)。"""
+    if not text:
+        return
+    f = font(FONT_BOLD, 22)
+    bbox = f.getbbox(text)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    pad_x, pad_y = 14, 8
+    cy = y - icon_size * 0.62 - th - pad_y
+    bx0, by0 = x - tw / 2 - pad_x, cy - pad_y
+    bx1, by1 = x + tw / 2 + pad_x, cy + th + pad_y
+
+    layer = Image.new("RGBA", canvas_rgba.size, (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    ld.rounded_rectangle([bx0, by0, bx1, by1], radius=11,
+                          fill=(15, 18, 30, 215), outline=color + (255,), width=2)
+    ld.text((x, (by0 + by1) / 2), text, font=f, fill=(255, 255, 255, 255), anchor="mm")
+    canvas_rgba.alpha_composite(layer)
+
+
 def draw_caption(canvas_rgba, text, speaker, color, alpha=255):
     layer = Image.new("RGBA", canvas_rgba.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
@@ -271,6 +296,7 @@ def draw_scoreboard(canvas_rgba, route_list, motions, real_mins, bar_top=None):
         # 絶対に下がらない位置を、render() 側と同じ式で逆算する。
         bar_top = SAFE_BOTTOM_Y - 15 - 15 - gap * (n_routes - 1)
     row_ys = [bar_top + i * gap for i in range(n_routes)]
+    wait_icon_slots = []
     for route, y in zip(route_list, row_ys):
         color = tuple(route["color"])
         m = motions[route["key"]]
@@ -283,7 +309,13 @@ def draw_scoreboard(canvas_rgba, route_list, motions, real_mins, bar_top=None):
             d.rounded_rectangle([bar_x0, y - 10, fill_x, y + 10], radius=10, fill=color + (255,))
         label = f"{min(rmin, route['total_min']):.0f}分" + (" GOAL" if m.finished(rmin) else "")
         d.text((1040, y), label, font=f_time, fill=(255, 255, 255, 255), anchor="rm")
+        # legsモードで現在「待機中」(搭乗待ち・乗換待ち等)のルートは、
+        # プログレスバーの隣に小さな時計マークを表示する。
+        if not m.finished(rmin) and leg_icon_at(route, rmin) == "wait":
+            wait_icon_slots.append((bar_x1 + 26, y, color))
     canvas_rgba.alpha_composite(layer)
+    for wx, wy, wcolor in wait_icon_slots:
+        draw_wait_icon(canvas_rgba, wx, wy, wcolor, size=34)
 
 
 RESULT_TIE_EPSILON_MIN = 1e-6
@@ -409,6 +441,12 @@ def render(config, paths, base_map_rgba, proj, out_dir="output", frames_dir="fra
             x, y = project(proj, lon, lat)
             kind = leg_icon_at(r, real_mins[r["key"]])  # "legs"が無いルートはNone(=従来通り)
             draw_icon_by_kind(kind, canvas, x, y, color_by_key[r["key"]], icon_img=icons[r["key"]])
+            # legsモードのルートは、アイコンのそばに「搭乗待ち」「鉄道移動中」
+            # のような現在の状態を常時表示する(到着後は表示しない)。
+            if not motions[r["key"]].finished(real_mins[r["key"]]):
+                status_text = leg_status_at(r, real_mins[r["key"]])
+                if status_text:
+                    draw_leg_status(canvas, x, y, status_text, color_by_key[r["key"]])
 
         for r in route_list:
             for st in r["stations"]:
