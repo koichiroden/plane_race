@@ -22,22 +22,10 @@ MAP_LEFT = 60
 MAP_RIGHT = 1020
 
 
-def compute_projection(all_coords, pad_ratio=0.16, stretch_to_fit=False, max_stretch=1.6):
-    """all_coords がちょうど収まる投影パラメータを計算する。
-
-    stretch_to_fit=False(既定): 従来通り、縦横比を保ったまま
-    avail_w/avail_h に収まる最大の縮尺(min)を使う。どちらかの軸に
-    余白が残る(レターボックス状になる)ことがある。
-
-    stretch_to_fit=True: 縦横比を保たず、x軸・y軸それぞれ独立に
-    avail_w/avail_h いっぱいまで拡大しようとする。経路の形が東西・南北
-    どちらかに極端に偏っている(例: 東京〜福岡のようにほぼ東西一直線)
-    場合でも、縦長キャンバスの余白に遠方の地形(北海道・沖縄など)が
-    写り込むのを防ぎ、出発地・到着地が画角にしっかり収まるようにする。
-    ただし完全に引き伸ばすと海岸線の形が不自然に歪むため、余白の少ない
-    軸(基準)を基準に、もう一方の軸の拡大率は最大 max_stretch 倍までに
-    制限する(それでも収まりきらない分だけ、従来通り余白として残る)。
-    """
+def compute_projection(all_coords, pad_ratio=0.16):
+    """all_coords がちょうど収まる投影パラメータを計算する(縦横比を
+    保ったまま avail_w/avail_h に収まる最大の縮尺を使う。どちらかの軸に
+    余白が残る=レターボックス状になることがある)。"""
     lons = [c[0] for c in all_coords]
     lats = [c[1] for c in all_coords]
     lon_min, lon_max = min(lons), max(lons)
@@ -66,17 +54,8 @@ def compute_projection(all_coords, pad_ratio=0.16, stretch_to_fit=False, max_str
 
     avail_w = MAP_RIGHT - MAP_LEFT
     avail_h = MAP_BOTTOM - MAP_TOP
-
-    if stretch_to_fit and x_span_p and y_span_p:
-        scale_x_raw = avail_w / x_span_p
-        scale_y_raw = avail_h / y_span_p
-        scale_uniform = min(scale_x_raw, scale_y_raw)
-        cap = scale_uniform * max_stretch
-        scale_x = min(scale_x_raw, cap)
-        scale_y = min(scale_y_raw, cap)
-    else:
-        scale = min(avail_w / x_span_p, avail_h / y_span_p) if x_span_p and y_span_p else 1.0
-        scale_x = scale_y = scale
+    scale = min(avail_w / x_span_p, avail_h / y_span_p) if x_span_p and y_span_p else 1.0
+    scale_x = scale_y = scale
 
     draw_w = x_span_p * scale_x
     draw_h = y_span_p * scale_y
@@ -110,40 +89,62 @@ def compute_fixed_projection(bbox=None, pad_ratio=0.02):
     return compute_projection(corner_coords, pad_ratio=pad_ratio)
 
 
-def compute_route_fit_projection(all_coords, pad_ratio=0.22, min_span_deg=1.4):
+def compute_route_fit_projection(all_coords, pad_ratio=0.14, min_span_deg=1.0):
     """全国版(map_extent="japan")用: 日本全体の固定範囲ではなく、実際の
     出発地・到着地・経路(all_coords)がちょうど収まるように毎回ズーム
     レベルを計算する。東京〜札幌のような遠距離ペアは自然に広い画角、
     東京〜前橋のような近距離ペアは自然に寄った画角になる。
 
-    経路がほぼ一直線(緯度・経度どちらかの幅がとても狭い)だと極端な
-    ズームイン/歪みになってしまうため、min_span_deg 未満の幅は中心を
-    基準に min_span_deg まで広げてから使う。
+    北を上にしたまま(回転しない)、縦横比も保った(歪ませない)ままの
+    フィットなので、東京〜広島・東京〜福岡のように出発地・到着地が
+    ほぼ東西一直線に並ぶ組み合わせでは、縦長キャンバスの上下に空きが
+    残る。この余白そのものは(方角と実際の形を優先する以上)避けられ
+    ないが、render_base.py 側でその空いた範囲に北海道・東北・沖縄など
+    無関係な地形が写り込まないよう、出発地・到着地の近辺だけに描画を
+    絞っている(渡された緯度経度の範囲で地図データを切り取る)。
 
-    また、東京〜福岡のように経路がほぼ東西一直線(縦長キャンバスとは
-    逆の向き)の場合、縦横比を保ったまま(letterbox)フィットさせると
-    上下に大きな余白ができ、そこに北海道や沖縄など無関係な地形が写り
-    込んで「引き気味」に見えてしまう。これを避けるため、
-    stretch_to_fit=True(縦横比を保たない、x軸・y軸独立フィット)を
-    使い、出発地・到着地が画角いっぱいに収まるようにしている。
+    pad_ratio は「route」モード(既定0.16)よりわずかに小さくし、
+    出発地・到着地の周りの余白を削って可能な範囲でズームインしている。
+
+    経路がほぼ一直線(幅がとても狭い)方向は極端なズームインになって
+    しまうため、min_span_deg 未満の幅は中心を基準に min_span_deg まで
+    広げてから使う。
     """
     lons = [c[0] for c in all_coords]
     lats = [c[1] for c in all_coords]
     lon_min, lon_max = min(lons), max(lons)
     lat_min, lat_max = min(lats), max(lats)
-
     if lon_max - lon_min < min_span_deg:
         cx = (lon_min + lon_max) / 2
         lon_min, lon_max = cx - min_span_deg / 2, cx + min_span_deg / 2
     if lat_max - lat_min < min_span_deg:
         cy = (lat_min + lat_max) / 2
         lat_min, lat_max = cy - min_span_deg / 2, cy + min_span_deg / 2
-
     corner_coords = [
         (lon_min, lat_min), (lon_max, lat_min),
         (lon_min, lat_max), (lon_max, lat_max),
     ]
-    return compute_projection(corner_coords, pad_ratio=pad_ratio, stretch_to_fit=True)
+    return compute_projection(corner_coords, pad_ratio=pad_ratio)
+
+
+def compute_geo_clip_bbox(all_coords, margin_ratio=0.6, min_margin_deg=1.0):
+    """map_extent="japan" 用: 出発地・到着地・経路(all_coords)の周辺
+    だけを描画対象にするための緯度経度の範囲(lon_min, lon_max, lat_min,
+    lat_max)を返す。draw_land_and_sea() に渡すと、この範囲の外にある
+    陸地(北海道・東北・沖縄など、経路と無関係な地形)は描画されなく
+    なる。margin_ratio は経路の幅に対してどれだけ余白を持たせるかの
+    比率(近隣の県などは見えるように)、min_margin_deg はどんなに短い
+    経路でもこれ未満には狭めない下限。"""
+    lons = [c[0] for c in all_coords]
+    lats = [c[1] for c in all_coords]
+    lon_min, lon_max = min(lons), max(lons)
+    lat_min, lat_max = min(lats), max(lats)
+    lon_span = max(lon_max - lon_min, 0.1)
+    lat_span = max(lat_max - lat_min, 0.1)
+    margin_lon = max(lon_span * margin_ratio, min_margin_deg)
+    margin_lat = max(lat_span * margin_ratio, min_margin_deg)
+    return (lon_min - margin_lon, lon_max + margin_lon,
+            lat_min - margin_lat, lat_max + margin_lat)
 
 
 def project(params, lon, lat):

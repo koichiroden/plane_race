@@ -148,7 +148,8 @@ def build_leg_route(route_cfg):
         })
         legs_out.append({
             "t_start": leg["t_start"], "t_end": leg["t_end"],
-            "icon": leg.get("icon", "train"),
+            "icon": leg.get("icon", "train"), "kind": kind,
+            "label": leg.get("label", ""),
         })
 
     stations.insert(0, {
@@ -185,3 +186,35 @@ def leg_icon_at(route, real_min):
         if real_min <= leg["t_end"]:
             return leg["icon"]
     return legs[-1]["icon"]
+
+
+# アイコン種別ごとの既定ステータス文言。"wait"(搭乗待ち・乗換待ち等)は
+# 通常 config 側の leg.label に具体的な文言(例:「羽田空港(搭乗待ち)」)が
+# 入っているのでそちらを優先し、これはlabelが無い場合のフォールバック。
+_ICON_STATUS_DEFAULT = {
+    "train": "鉄道移動中",
+    "plane": "飛行中",
+    "bus": "バス移動中",
+    "walk": "徒歩移動中",
+    "monorail": "モノレール移動中",
+    "wait": "待機中",
+}
+
+
+def leg_status_at(route, real_min):
+    """このルートの real_min 時点で、アイコンのそばに出す短いステータス
+    文言を返す(例:「搭乗待ち」の代わりに leg.label があればそれを使い、
+    通常の移動区間(kind=coords/straight/great_circle)は「鉄道移動中」
+    「飛行中」のようなアイコン種別ごとの既定文言を使う)。"legs" を持たない
+    ルートに対しては None を返す。"""
+    legs = route.get("legs")
+    if not legs:
+        return None
+    cur = legs[-1]
+    for leg in legs:
+        if real_min <= leg["t_end"]:
+            cur = leg
+            break
+    if cur.get("kind") == "wait" and cur.get("label"):
+        return cur["label"]
+    return _ICON_STATUS_DEFAULT.get(cur.get("icon"), "")

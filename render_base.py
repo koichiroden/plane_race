@@ -9,7 +9,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 from .geo import (compute_projection, compute_fixed_projection, compute_route_fit_projection,
-                   project, unproject, CANVAS_W, CANVAS_H, MAP_BOTTOM, SAFE_TOP_Y)
+                   compute_geo_clip_bbox, project, unproject, CANVAS_W, CANVAS_H, MAP_BOTTOM, SAFE_TOP_Y)
 from . import fonts as _fonts
 
 FONT_BOLD, FONT_REGULAR, FONT_BLACK = _fonts.resolve()
@@ -94,9 +94,16 @@ def clip_ring_to_bbox(ring, lon_min, lon_max, lat_min, lat_max):
 
 
 def draw_land_and_sea(canvas, proj, land_rings, land_color=(23, 22, 20, 225),
-                       coast_color=(150, 205, 230, 130)):
+                       coast_color=(150, 205, 230, 130), clip_bbox=None):
     """陸地を塗り、海岸線をうっすら光らせて、どこが海でどこが陸か
-    分かるようにする(海=背景のグラデーションのまま)。"""
+    分かるようにする(海=背景のグラデーションのまま)。
+
+    clip_bbox に (lon_min, lon_max, lat_min, lat_max) を渡すと、
+    その範囲の外にある陸地は(たとえ現在のズーム/オフセットで座標上は
+    キャンバス内に収まってしまう場合でも)描画しない。map_extent="japan"
+    で、東西に長い経路(東京〜広島など)のせいで縦方向に大きな余白が
+    できたときに、そこへ北海道・東北・沖縄など無関係な地形が写り込む
+    のを防ぐために使う。"""
     if not land_rings:
         return
 
@@ -112,6 +119,13 @@ def draw_land_and_sea(canvas, proj, land_rings, land_color=(23, 22, 20, 225),
     lat_min = min(c[1] for c in corners)
     lat_max = max(c[1] for c in corners)
 
+    if clip_bbox is not None:
+        cb_lon_min, cb_lon_max, cb_lat_min, cb_lat_max = clip_bbox
+        lon_min = max(lon_min, cb_lon_min)
+        lon_max = min(lon_max, cb_lon_max)
+        lat_min = max(lat_min, cb_lat_min)
+        lat_max = min(lat_max, cb_lat_max)
+
     land_layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
     ld = ImageDraw.Draw(land_layer)
     coast_layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
@@ -125,9 +139,14 @@ def draw_land_and_sea(canvas, proj, land_rings, land_color=(23, 22, 20, 225),
         ld.polygon(pts, fill=land_color)
 
         # 海岸線そのもの(切り取り範囲の縁ではなく実際の陸地の輪郭だけ)は、
-        # 表示範囲内かどうかをピクセル座標で緩く判定して描く。
+        # 表示範囲内(ピクセル座標)かつ clip_bbox 範囲内(緯度経度)の
+        # 両方を満たす区間だけを描く。
         full_pts = [project(proj, lon, lat) for lon, lat in ring]
-        in_view = [-80 <= x <= CANVAS_W + 80 and -80 <= y <= CANVAS_H + 80 for x, y in full_pts]
+        in_view = [
+            (-80 <= x <= CANVAS_W + 80 and -80 <= y <= CANVAS_H + 80
+             and lon_min <= lon <= lon_max and lat_min <= lat <= lat_max)
+            for (x, y), (lon, lat) in zip(full_pts, ring)
+        ]
         seg = []
         for pt, ok in zip(full_pts, in_view):
             if ok:
@@ -183,14 +202,21 @@ def render_base_map(config, paths, geojson_path="data/routes.geojson"):
         focus_coords.extend(r["polyline"])
 
     map_extent = config.get("map_extent", "route")  # "route"(既定) | "japan"(全国海岸線+出発地~到着地にフィット) | "japan_fixed"(常に日本全国を固定表示)
+    geo_clip_bbox = None
     if map_extent == "japan_fixed":
         # 常に日本全国(北海道〜沖縄)を同じ縮尺で表示したい場合のみ使用。
         # 出発地・到着地がどこであっても画角は変わらない。
         proj = compute_fixed_projection()
     elif map_extent == "japan":
         # 全国海岸線を背景にしつつ、実際の出発地・到着地・経路がちょうど
-        # 収まるようにズームレベルを毎回計算する(既定の全国表示)。
+        # 収まるように(北を上にしたまま、縦横比も保って)ズームレベルを
+        # 毎回計算する(既定の全国表示)。東京〜広島のように出発地・
+        # 到着地が東西一直線に近いペアは、縦長キャンバスの都合上どうしても
+        # 上下に余白ができるが、その余白に北海道・東北・沖縄など無関係な
+        # 地形が写り込まないよう、geo_clip_bbox で出発地・到着地の周辺
+        # だけに描画範囲を絞る。
         proj = compute_route_fit_projection(focus_coords)
+        geo_clip_bbox = compute_geo_clip_bbox(focus_coords)
     else:
         proj = compute_projection(focus_coords, pad_ratio=0.16)
 
@@ -205,7 +231,7 @@ def render_base_map(config, paths, geojson_path="data/routes.geojson"):
     coastline_name = "coastline_japan.geojson" if map_extent in ("japan", "japan_fixed") else "coastline.geojson"
     data_dir = Path(geojson_path).parent if geojson_path else Path("data")
     land_rings = load_land_polygons(str(data_dir / coastline_name))
-    draw_land_and_sea(canvas, proj, land_rings)
+    draw_land_and_sea(canvas, proj, land_rings, clip_bbox=geo_clip_bbox)
 
     # 背景テクスチャ: 全路線をうす暗いグレーで描画(表示範囲外は自然に切れる)
     # レース中の路線と見分けやすいよう、以前より少しだけ濃くしてある。
