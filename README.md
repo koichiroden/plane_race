@@ -158,7 +158,16 @@ python3 -m race_video.cli configs/tokyo_fukuoka_plane_vs_shinkansen.json
 
 各legには `icon`(`train`/`plane`/`bus`/`walk`/`monorail`等)、
 `t_start`/`t_end`(動画の共有タイムライン上の分数)、`label`・`popup`
-(ポップアップ表示するか)を指定できます。`map_extent: "japan"` を
+(ポップアップ表示するか)を指定できます。
+
+legsモードのルートは、動いているアイコンのすぐ上に、現在の状態を示す
+小さなラベルが常時表示されます(「搭乗待ち」のような `kind: "wait"` の
+legは `label` の文言をそのまま、それ以外の移動区間は `icon` に応じた
+既定の文言 ― 「鉄道移動中」「飛行中」「バス移動中」「徒歩移動中」
+「モノレール移動中」― を自動で表示します)。到着後は表示されなくなります。
+駅データSHPベースの従来モード(`"mode"` 未指定)のルートには影響しません。
+
+`map_extent: "japan"` を
 configのトップレベルに指定すると、背景地図が関西圏ではなく日本全国の
 海岸線(`data/coastline_japan.geojson`)になり、かつ**出発地・到着地・
 経路がちょうど画角に収まるように、動画ごとに自動でズームレベルが
