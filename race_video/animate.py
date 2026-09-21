@@ -289,11 +289,13 @@ def marker_offset(cx, cy, index, n_routes, distance=100):
     return ix, iy
 
 
-def draw_moving_marker(canvas_rgba, x, y, icon_x, icon_y, kind, status_text, color,
+def draw_moving_marker(canvas_rgba, x, y, icon_x, icon_y, kind, color,
                         icon_img=None, icon_size=54, dot_radius=9):
     """地図上を実際に動くのは小さなドットのみにし、ドットから引き出し線を
-    伸ばした先に、現在の状態を表すアイコン(電車/飛行機/待機中/バス/
-    モノレール等)とステータスラベルを表示する。"""
+    伸ばした先には、現在の状態を表すアイコン画像(電車/飛行機/待機中/バス/
+    モノレール等)だけを表示する。ステータスの文言(「搭乗待ち」等)は
+    ここでは表示せず、スコアボード側(交通手段名とプログレスバーの間)に
+    表示する。"""
     layer = Image.new("RGBA", canvas_rgba.size, (0, 0, 0, 0))
     ld = ImageDraw.Draw(layer)
     ld.line([(x, y), (icon_x, icon_y)], fill=color + (190,), width=3)
@@ -303,8 +305,6 @@ def draw_moving_marker(canvas_rgba, x, y, icon_x, icon_y, kind, status_text, col
     canvas_rgba.alpha_composite(layer)
 
     draw_icon_by_kind(kind, canvas_rgba, icon_x, icon_y, color, icon_img=icon_img, size=icon_size)
-    if status_text:
-        draw_leg_status(canvas_rgba, icon_x, icon_y, status_text, color, icon_size=icon_size)
 
 
 def draw_caption(canvas_rgba, text, speaker, color, alpha=255):
@@ -331,7 +331,14 @@ def draw_scoreboard(canvas_rgba, route_list, motions, real_mins, bar_top=None):
     d = ImageDraw.Draw(layer)
     f_name = font(FONT_BOLD, 30)
     f_time = font(FONT_BLACK, 30, index=0)
-    bar_x0, bar_x1 = 230, 820
+    f_status = font(FONT_BOLD, 19)
+    # 交通手段名(短縮名)とプログレスバーの間に、現在のアイコン(電車/飛行機/
+    # 待機中/バス/モノレール等)とステータス文言(legsモードのみ)を表示する
+    # 余白を確保するため、バー開始位置を右にずらしてある。
+    # アイコンの位置は「JR新快速」のように短縮名が長いルートでも文字と
+    # 重ならないよう、実際のテキスト幅から動的に計算する。
+    name_x, min_icon_x, icon_status_gap = 40, 168, 30
+    bar_x0, bar_x1 = 400, 820
     n_routes = len(route_list)
     gap = 70 if n_routes <= 2 else 50
     if bar_top is None:
@@ -340,26 +347,43 @@ def draw_scoreboard(canvas_rgba, route_list, motions, real_mins, bar_top=None):
         # 絶対に下がらない位置を、render() 側と同じ式で逆算する。
         bar_top = SAFE_BOTTOM_Y - 15 - 15 - gap * (n_routes - 1)
     row_ys = [bar_top + i * gap for i in range(n_routes)]
-    wait_icon_slots = []
+    icon_slots = []
     for route, y in zip(route_list, row_ys):
         color = tuple(route["color"])
         m = motions[route["key"]]
         rmin = real_mins[route["key"]]
         frac = m.progress(rmin)
-        d.text((40, y), route["short_name"], font=f_name, fill=(255, 255, 255, 255), anchor="lm")
+        finished = m.finished(rmin)
+        d.text((name_x, y), route["short_name"], font=f_name, fill=(255, 255, 255, 255), anchor="lm")
+        name_bbox = f_name.getbbox(route["short_name"])
+        icon_x = max(min_icon_x, name_x + (name_bbox[2] - name_bbox[0]) + 26)
+        status_x0 = icon_x + icon_status_gap
         d.rounded_rectangle([bar_x0, y - 10, bar_x1, y + 10], radius=10, fill=(255, 255, 255, 40))
         fill_x = bar_x0 + (bar_x1 - bar_x0) * frac
         if fill_x > bar_x0:
             d.rounded_rectangle([bar_x0, y - 10, fill_x, y + 10], radius=10, fill=color + (255,))
-        label = f"{min(rmin, route['total_min']):.0f}分" + (" GOAL" if m.finished(rmin) else "")
+        label = f"{min(rmin, route['total_min']):.0f}分" + (" GOAL" if finished else "")
         d.text((1040, y), label, font=f_time, fill=(255, 255, 255, 255), anchor="rm")
-        # legsモードで現在「待機中」(搭乗待ち・乗換待ち等)のルートは、
-        # プログレスバーの隣に小さな時計マークを表示する。
-        if not m.finished(rmin) and leg_icon_at(route, rmin) == "wait":
-            wait_icon_slots.append((bar_x1 + 26, y, color))
+        # 交通手段名とバーの間に、現在のアイコンと(legsモードなら)状態文言
+        # を表示する(到着後は表示しない)。アイコン自体はcanvas_rgbaに
+        # 直接コンポジットするアイコン描画関数を使うため、layer(このあとで
+        # まとめてコンポジットするテキスト・バー用のレイヤー)とは別に
+        # 後段でまとめて描く。
+        if not finished:
+            kind = leg_icon_at(route, rmin)
+            status_text = leg_status_at(route, rmin)
+            icon_slots.append((icon_x, y, kind, color))
+            if status_text:
+                max_w = bar_x0 - 16 - status_x0
+                st = status_text
+                while st and f_status.getbbox(st)[2] > max_w:
+                    st = st[:-1]
+                if st != status_text and len(st) > 0:
+                    st = st[:-1] + "…"
+                d.text((status_x0, y), st, font=f_status, fill=(230, 230, 240, 255), anchor="lm")
     canvas_rgba.alpha_composite(layer)
-    for wx, wy, wcolor in wait_icon_slots:
-        draw_wait_icon(canvas_rgba, wx, wy, wcolor, size=34)
+    for ix, iy, kind, color in icon_slots:
+        draw_icon_by_kind(kind, canvas_rgba, ix, iy, color, icon_img=None, size=32)
 
 
 RESULT_TIE_EPSILON_MIN = 1e-6
@@ -487,14 +511,9 @@ def render(config, paths, base_map_rgba, proj, out_dir="output", frames_dir="fra
             x, y = project(proj, lon, lat)
             ix, iy = marker_offset(x, y, marker_index, n_routes_marker)
             kind = leg_icon_at(r, real_mins[r["key"]])  # "legs"が無いルートはNone(=従来通り)
-            # legsモードのルートは、アイコンのそばに「搭乗待ち」「鉄道移動中」
-            # のような現在の状態を常時表示する(到着後は表示しない)。
-            status_text = None
-            if not motions[r["key"]].finished(real_mins[r["key"]]):
-                status_text = leg_status_at(r, real_mins[r["key"]])
-            # 地図上を実際に動くのは小さなドットのみ。引き出し線の先に
-            # アイコン(と、あればステータス)を表示する。
-            draw_moving_marker(canvas, x, y, ix, iy, kind, status_text, color_by_key[r["key"]],
+            # 地図上を実際に動くのは小さなドットのみ。引き出し線の先には
+            # アイコン画像だけを表示する(ステータス文言はスコアボード側)。
+            draw_moving_marker(canvas, x, y, ix, iy, kind, color_by_key[r["key"]],
                                 icon_img=icons[r["key"]])
 
         for r in route_list:
