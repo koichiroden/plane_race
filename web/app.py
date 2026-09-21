@@ -255,7 +255,7 @@ PAGE = """<!doctype html>
     <textarea class="jsonbox" id="paste-json" placeholder='{"slug": "...", "routes": [...] }'></textarea>
 
     <div class="icon-picker" id="icon-picker">
-      <p class="empty" style="margin:10px 0 0; font-size:12.5px;">JSONを読み込むと、ここでルートごとに車両アイコンを選べます(未指定ならデフォルトのアイコンを使用します)。</p>
+      <p class="empty" style="margin:10px 0 0; font-size:12.5px;">JSONを読み込むと、ここで「飛行機」「市内移動」「新幹線」「鉄道」それぞれの車両アイコンを選べます(未指定ならデフォルトのアイコンを使用します)。</p>
     </div>
 
     <div class="paste-actions">
@@ -293,19 +293,67 @@ PAGE = """<!doctype html>
 
 <script>
 let knownIcons = {{ icons|tojson }};
-let iconOverrides = {};  // ルートのindex -> icon_path("" ならデフォルトアイコン)
+let iconOverrides = {};  // カテゴリkey("plane"/"citytransit"/"shinkansen"/"rail") -> icon_path("" ならデフォルトアイコン)
+
+const CATEGORY_ORDER = ["plane", "citytransit", "shinkansen", "rail"];
+const CATEGORY_LABEL = {plane: "飛行機", citytransit: "市内移動", shinkansen: "新幹線", rail: "鉄道"};
 
 function debounce(fn, ms) {
   let t;
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
-function routesFromTextarea() {
+function configFromTextarea() {
   try {
     const cfg = JSON.parse(document.getElementById("paste-json").value);
-    if (Array.isArray(cfg.routes)) return cfg.routes;
+    if (cfg && Array.isArray(cfg.routes)) return cfg;
   } catch (e) { /* JSONが不完全な間は何もしない */ }
   return null;
+}
+
+// legの icon 種別と、そのlegが属するルートから、「飛行機」「市内移動」「新幹線」
+// 「鉄道」のどのカテゴリに束ねるかを判定する。
+// - icon が "plane" -> 飛行機
+// - icon が "bus"/"walk"/"monorail" -> 市内移動(空港アクセス・着陸後の移動をまとめて
+//   1つのアイコンで選べるようにしている)
+// - icon が "train"(または未指定)-> 新幹線ルート(route.short_name が "新幹線"、
+//   無ければ先頭のルート)に属していれば新幹線、それ以外(飛行機ルート側のアクセス/
+//   着陸後の区間を「電車」にした場合など)は鉄道、として区別する
+function categoryFor(icon, isShinkansenRoute) {
+  if (icon === "plane") return "plane";
+  if (icon === "bus" || icon === "walk" || icon === "monorail") return "citytransit";
+  return isShinkansenRoute ? "shinkansen" : "rail";
+}
+
+// config.routes を走査し、カテゴリkey -> [{routeIndex, legIndex}] の対応表を作る。
+// legIndex が null のターゲットは leg を持たない従来ルートで、route.icon_path を
+// そのまま上書きする対象になる。
+function buildCategoryTargets(cfg) {
+  const targets = {};
+  const shinkansenRouteIndex = cfg.routes.findIndex(r => r.short_name === "新幹線");
+  cfg.routes.forEach((r, ri) => {
+    const isShinkansenRoute = shinkansenRouteIndex >= 0 ? ri === shinkansenRouteIndex : ri === 0;
+    if (Array.isArray(r.legs) && r.legs.length) {
+      r.legs.forEach((leg, li) => {
+        if (leg.kind === "wait" || leg.icon === "wait") return; // 待機中は対象外
+        const cat = categoryFor(leg.icon, isShinkansenRoute);
+        (targets[cat] = targets[cat] || []).push({routeIndex: ri, legIndex: li});
+      });
+    } else {
+      // legsを持たない従来ルートは、ルート全体を1つのターゲットとして扱う
+      const cat = categoryFor(r.icon, isShinkansenRoute);
+      (targets[cat] = targets[cat] || []).push({routeIndex: ri, legIndex: null});
+    }
+  });
+  return targets;
+}
+
+function currentValueForTargets(cfg, tlist) {
+  for (const t of tlist) {
+    const obj = t.legIndex === null ? cfg.routes[t.routeIndex] : cfg.routes[t.routeIndex].legs[t.legIndex];
+    if (obj && obj.icon_path) return obj.icon_path;
+  }
+  return "";
 }
 
 function setThumb(imgEl, val) {
@@ -315,20 +363,23 @@ function setThumb(imgEl, val) {
 
 function renderIconPicker() {
   const wrap = document.getElementById("icon-picker");
-  const routes = routesFromTextarea();
-  if (!routes || !routes.length) {
-    wrap.innerHTML = '<p class="empty" style="margin:10px 0 0; font-size:12.5px;">JSONを読み込むと、ここでルートごとに車両アイコンを選べます(未指定ならデフォルトのアイコンを使用します)。</p>';
+  const cfg = configFromTextarea();
+  const targetsByCat = cfg ? buildCategoryTargets(cfg) : {};
+  const cats = CATEGORY_ORDER.filter(c => targetsByCat[c] && targetsByCat[c].length);
+  if (!cfg || !cats.length) {
+    wrap.innerHTML = '<p class="empty" style="margin:10px 0 0; font-size:12.5px;">JSONを読み込むと、ここで「飛行機」「市内移動」「新幹線」「鉄道」それぞれの車両アイコンを選べます(未指定ならデフォルトのアイコンを使用します)。</p>';
     return;
   }
   wrap.innerHTML = "";
-  routes.forEach((r, i) => {
-    const current = Object.prototype.hasOwnProperty.call(iconOverrides, i) ? iconOverrides[i] : (r.icon_path || "");
+  cats.forEach(cat => {
+    const tlist = targetsByCat[cat];
+    const current = Object.prototype.hasOwnProperty.call(iconOverrides, cat) ? iconOverrides[cat] : currentValueForTargets(cfg, tlist);
     const row = document.createElement("div");
     row.className = "icon-row";
 
     const name = document.createElement("span");
     name.className = "rname";
-    name.textContent = r.name || r.short_name || ("ルート" + (i + 1));
+    name.textContent = CATEGORY_LABEL[cat];
 
     const thumb = document.createElement("img");
     thumb.className = "thumb";
@@ -343,7 +394,7 @@ function renderIconPicker() {
     }
     select.value = current;
     select.addEventListener("change", () => {
-      iconOverrides[i] = select.value;
+      iconOverrides[cat] = select.value;
       setThumb(thumb, select.value);
     });
 
@@ -366,7 +417,7 @@ function renderIconPicker() {
         const data = await res.json();
         if (data.icon_path) {
           if (!knownIcons.includes(data.filename)) knownIcons.push(data.filename);
-          iconOverrides[i] = data.icon_path;
+          iconOverrides[cat] = data.icon_path;
           renderIconPicker();
         } else {
           alert(data.error || "アップロードに失敗しました");
@@ -502,11 +553,14 @@ document.getElementById("paste-btn").addEventListener("click", () => {
   try {
     const cfg = JSON.parse(text);
     if (Array.isArray(cfg.routes)) {
-      cfg.routes.forEach((r, i) => {
-        if (Object.prototype.hasOwnProperty.call(iconOverrides, i)) {
-          if (iconOverrides[i]) r.icon_path = iconOverrides[i];
-          else delete r.icon_path;
-        }
+      const targetsByCat = buildCategoryTargets(cfg);
+      Object.keys(iconOverrides).forEach(cat => {
+        const val = iconOverrides[cat];
+        (targetsByCat[cat] || []).forEach(t => {
+          const obj = t.legIndex === null ? cfg.routes[t.routeIndex] : cfg.routes[t.routeIndex].legs[t.legIndex];
+          if (val) obj.icon_path = val;
+          else delete obj.icon_path;
+        });
       });
       text = JSON.stringify(cfg);
     }
