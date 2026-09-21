@@ -5,13 +5,14 @@
 アイコン, 通過駅ポップアップ, 実況テロップ, スコアボードを描画する。
 フレームをPNG連番で書き出し、最後にffmpegでmp4にエンコードする。
 """
+import math
 import os
 import shutil
 import subprocess
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-from .geo import project, CANVAS_W, CANVAS_H, SAFE_BOTTOM_Y
+from .geo import project, CANVAS_W, CANVAS_H, SAFE_BOTTOM_Y, MAP_TOP, MAP_BOTTOM
 from .motion import RouteMotion
 from .commentary import build_events, write_script_files
 from .flight_route import leg_icon_at, leg_status_at
@@ -263,6 +264,49 @@ def draw_leg_status(canvas_rgba, x, y, text, color, icon_size=54):
     canvas_rgba.alpha_composite(layer)
 
 
+def marker_offset(cx, cy, index, n_routes, distance=100):
+    """実際に地図上を動く点(cx, cy)から、アイコン+ステータスを表示する
+    位置までのオフセット先(ix, iy)を計算する。複数ルートが同じ場所
+    (レース開始直後など)にいても重ならないよう、ルートの並び順(index)
+    に応じて真上を中心に扇状に角度を振り分ける。ステータスラベルの
+    横幅(最大で「羽田空港(搭乗待ち)」程度)は横だけの間隔では足りない
+    場合があるため、引き出し線の長さも交互に変えて高さもずらし、
+    ラベル同士が重ならないようにしている。"""
+    if n_routes <= 1:
+        angle_deg = -90.0
+        dist = distance
+    else:
+        spread = 70.0
+        angle_deg = -90.0 + (index - (n_routes - 1) / 2) * spread
+        dist = distance + (index % 2) * 55
+    rad = math.radians(angle_deg)
+    ix = cx + dist * math.cos(rad)
+    iy = cy + dist * math.sin(rad)
+    # アイコン+ステータスラベルがキャンバス端や出発地・到着地の近くで
+    # 見切れないよう、描画可能な範囲内に収める。
+    ix = min(max(ix, 130), CANVAS_W - 130)
+    iy = min(max(iy, MAP_TOP + 95), MAP_BOTTOM - 20)
+    return ix, iy
+
+
+def draw_moving_marker(canvas_rgba, x, y, icon_x, icon_y, kind, status_text, color,
+                        icon_img=None, icon_size=54, dot_radius=9):
+    """地図上を実際に動くのは小さなドットのみにし、ドットから引き出し線を
+    伸ばした先に、現在の状態を表すアイコン(電車/飛行機/待機中/バス/
+    モノレール等)とステータスラベルを表示する。"""
+    layer = Image.new("RGBA", canvas_rgba.size, (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    ld.line([(x, y), (icon_x, icon_y)], fill=color + (190,), width=3)
+    r = dot_radius
+    ld.ellipse([x - r, y - r, x + r, y + r], fill=color + (255,),
+               outline=(255, 255, 255, 240), width=3)
+    canvas_rgba.alpha_composite(layer)
+
+    draw_icon_by_kind(kind, canvas_rgba, icon_x, icon_y, color, icon_img=icon_img, size=icon_size)
+    if status_text:
+        draw_leg_status(canvas_rgba, icon_x, icon_y, status_text, color, icon_size=icon_size)
+
+
 def draw_caption(canvas_rgba, text, speaker, color, alpha=255):
     layer = Image.new("RGBA", canvas_rgba.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
@@ -436,17 +480,22 @@ def render(config, paths, base_map_rgba, proj, out_dir="output", frames_dir="fra
         for r in reversed(route_list):
             draw_progress_route(canvas, proj, r, motions[r["key"]], real_mins[r["key"]], color_by_key[r["key"]])
 
-        for r in reversed(route_list):
+        n_routes_marker = len(route_list)
+        for idx, r in enumerate(reversed(route_list)):
+            marker_index = n_routes_marker - 1 - idx  # route_list本来の並び順で扇状に配置する
             lon, lat = motions[r["key"]].lonlat_at(real_mins[r["key"]])
             x, y = project(proj, lon, lat)
+            ix, iy = marker_offset(x, y, marker_index, n_routes_marker)
             kind = leg_icon_at(r, real_mins[r["key"]])  # "legs"が無いルートはNone(=従来通り)
-            draw_icon_by_kind(kind, canvas, x, y, color_by_key[r["key"]], icon_img=icons[r["key"]])
             # legsモードのルートは、アイコンのそばに「搭乗待ち」「鉄道移動中」
             # のような現在の状態を常時表示する(到着後は表示しない)。
+            status_text = None
             if not motions[r["key"]].finished(real_mins[r["key"]]):
                 status_text = leg_status_at(r, real_mins[r["key"]])
-                if status_text:
-                    draw_leg_status(canvas, x, y, status_text, color_by_key[r["key"]])
+            # 地図上を実際に動くのは小さなドットのみ。引き出し線の先に
+            # アイコン(と、あればステータス)を表示する。
+            draw_moving_marker(canvas, x, y, ix, iy, kind, status_text, color_by_key[r["key"]],
+                                icon_img=icons[r["key"]])
 
         for r in route_list:
             for st in r["stations"]:
