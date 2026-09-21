@@ -3,7 +3,7 @@
   "title_line1": "東京 → 高松",
   "title_line2": "新幹線 vs 飛行機 どっちが早い!?",
   "start_name": "東京",
-  "end_label": "高松(岡山から接続, 約38km)",
+  "end_label": "福岡(博多)",
   "video_duration_sec": 30,
   "intro_sec": 2,
   "outro_hold_sec": 4,
@@ -433,22 +433,64 @@
           "label": "岡山(乗り換え待ち)"
         },
         {
-          "kind": "straight",
-          "from": [
-            133.91917,
-            34.66742
-          ],
-          "to": [
-            134.0554,
-            34.34
+          "kind": "coords",
+          "coords": [
+            [
+              133.91917,
+              34.66742
+            ],
+            [
+              133.809,
+              34.454
+            ]
           ],
           "icon": "train",
-          "t_start": 210,
+          "icon_path": null,
+          "t_start": 193,
+          "t_end": 234,
+          "label": "児島",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.809,
+              34.454
+            ],
+            [
+              133.853,
+              34.316
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "t_start": 234,
+          "t_end": 249,
+          "label": "坂出",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.853,
+              34.316
+            ],
+            [
+              130.4206,
+              33.5902
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "t_start": 249,
           "t_end": 264,
-          "label": "高松(岡山から接続, 約38km)",
+          "label": "福岡(博多)",
           "popup": true
         }
-      ]
+      ],
+      "icon_path": null
     },
     {
       "key": "route_b",
@@ -463,17 +505,6 @@
       "start_label": "東京",
       "popup_start": true,
       "legs": [
-        {
-          "kind": "wait",
-          "at": [
-            139.76807,
-            35.68296
-          ],
-          "icon": "wait",
-          "t_start": 0,
-          "t_end": 108,
-          "label": "東京(出発待ち)"
-        },
         {
           "kind": "coords",
           "coords": [
@@ -571,8 +602,8 @@
             ]
           ],
           "icon": "train",
-          "t_start": 108,
-          "t_end": 143,
+          "t_start": 0,
+          "t_end": 35,
           "label": "羽田",
           "popup": true,
           "icon_path": null
@@ -584,8 +615,8 @@
             35.548667
           ],
           "icon": "wait",
-          "t_start": 143,
-          "t_end": 178,
+          "t_start": 35,
+          "t_end": 70,
           "label": "羽田(搭乗待ち)"
         },
         {
@@ -599,8 +630,8 @@
             34.218667
           ],
           "icon": "plane",
-          "t_start": 178,
-          "t_end": 258,
+          "t_start": 70,
+          "t_end": 150,
           "label": "高松空港",
           "popup": true,
           "icon_path": null
@@ -612,8 +643,8 @@
             34.218667
           ],
           "icon": "wait",
-          "t_start": 258,
-          "t_end": 273,
+          "t_start": 150,
+          "t_end": 165,
           "label": "高松空港(降機後の待機)"
         },
         {
@@ -627,8 +658,8 @@
             34.34
           ],
           "icon": "bus",
-          "t_start": 273,
-          "t_end": 328,
+          "t_start": 165,
+          "t_end": 220,
           "label": "高松",
           "popup": true,
           "icon_path": null
