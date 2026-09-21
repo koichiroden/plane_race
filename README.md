@@ -314,8 +314,37 @@ config の `"line"` に `"大阪環状線"` を使う場合は、他の路線の
 `icon_path` に透過PNG(進行方向=右向き推奨)を指定すると、その画像が
 車両アイコンとして使われます。**回転はさせません**(要件どおり、常に
 同じ向きで表示されます)。指定が無い場合は `race_video/animate.py` が
-簡易なプレースホルダーアイコンを描画します。`assets/` に画像を置いて
-config から参照してください。
+種別(電車/飛行機/待機中/バス/モノレール)ごとの簡易なプレースホルダー
+アイコンを描画します。`assets/` に画像を置いてconfigから参照してください。
+
+- **ルート全体の既定画像**: `configs/*.json` の各routeに直接 `icon_path`
+  を指定すると、そのルートの電車アイコン(kind未指定/`"train"`のとき)に
+  常に使われます(駅データSHPベースの従来モードで使えるのはこれだけです)。
+- **leg単位の画像(legsモードのみ)**: `"mode": "legs"` の各leg
+  に個別の `icon_path` を指定すると、そのleg区間だけ違う画像が使われ
+  ます。乗り換えで実際の車両(路線)が変わる区間ごとに新幹線の車両
+  画像を切り替えたり、飛行機の機体画像・バス(市内移動)のアイコン画像を
+  個別に指定したりできます(`kind` が `train`/`plane`/`bus`/`walk`/
+  `monorail`/`wait` のどれであっても使えます)。leg に `icon_path` が
+  無いlegは、`kind` が `train`(または未指定)のときだけルート全体の
+  既定 `icon_path` にフォールバックし、それ以外の種別(飛行機・バス等)
+  でleg側に指定が無ければベクターのプレースホルダーになります。
+
+```jsonc
+{
+  "legs": [
+    {"kind": "coords", "coords": [...], "icon": "train",
+     "icon_path": "assets/nozomi.png", "t_start": 0, "t_end": 40},
+    {"kind": "coords", "coords": [...], "icon": "train",
+     "icon_path": "assets/sakura.png",  // 乗り換え後は別画像
+     "t_start": 40, "t_end": 90},
+    {"kind": "great_circle", "from": [...], "to": [...], "icon": "plane",
+     "icon_path": "assets/my_airplane.png", "t_start": 0, "t_end": 100},
+    {"kind": "straight", "from": [...], "to": [...], "icon": "bus",
+     "icon_path": "assets/city_bus.png", "t_start": 100, "t_end": 115}
+  ]
+}
+```
 
 ## ブラウザから動画生成を実行する(web/app.py)
 

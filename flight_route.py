@@ -150,6 +150,12 @@ def build_leg_route(route_cfg):
             "t_start": leg["t_start"], "t_end": leg["t_end"],
             "icon": leg.get("icon", "train"), "kind": kind,
             "label": leg.get("label", ""),
+            # このleg専用の車両アイコン画像(透過PNG)。乗り換えで実際の
+            # 車両(路線)が変わる区間や、飛行機・バス(市内移動)など、
+            # legごとに見た目を変えたい場合に指定する。省略時はNone
+            # (leg_icon_path_at() がルート全体の既定icon_pathやベクター
+            # プレースホルダーにフォールバックする)。
+            "icon_path": leg.get("icon_path"),
         })
 
     stations.insert(0, {
@@ -171,6 +177,9 @@ def build_leg_route(route_cfg):
         "cum_dist": cum,
         "stations": stations,
         "legs": legs_out,
+        # ルート全体の既定アイコン画像(省略可)。legに"icon_path"が無い
+        # 場合のフォールバックとして使われる(train系のアイコンのみ)。
+        "icon_path": route_cfg.get("icon_path"),
     }
 
 
@@ -186,6 +195,25 @@ def leg_icon_at(route, real_min):
         if real_min <= leg["t_end"]:
             return leg["icon"]
     return legs[-1]["icon"]
+
+
+def leg_icon_path_at(route, real_min):
+    """このルートの real_min 時点の leg に、専用の車両アイコン画像
+    (config の leg."icon_path")が指定されていれば、そのパスを返す。
+    乗り換えで実際の車両(路線)が変わる区間ごとに違う画像を使ったり、
+    飛行機・バス(市内移動)などlegごとに見た目を変えたい場合に使う。
+    指定が無い場合や "legs" を持たないルートに対しては None を返す
+    (呼び出し側はルート全体の既定 icon_path やベクタープレースホルダーに
+    フォールバックする)。"""
+    legs = route.get("legs")
+    if not legs:
+        return None
+    cur = legs[-1]
+    for leg in legs:
+        if real_min <= leg["t_end"]:
+            cur = leg
+            break
+    return cur.get("icon_path")
 
 
 # アイコン種別ごとの既定ステータス文言。"wait"(搭乗待ち・乗換待ち等)は
