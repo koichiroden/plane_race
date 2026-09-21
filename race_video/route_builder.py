@@ -429,6 +429,10 @@ def build_route(route_cfg, line_geoms, station_db):
         "polyline": polyline,
         "cum_dist": cum,
         "stations": station_records,
+        # ルート全体の既定アイコン画像(省略可、legsモードのicon_pathと同じ
+        # 役割)。駅データSHPベースのこの従来モードには "legs" が無いため、
+        # 乗り換えごとに画像を切り替えることはできない(常にこの1枚)。
+        "icon_path": route_cfg.get("icon_path"),
     }
     return result, warnings
 

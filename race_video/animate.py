@@ -5,8 +5,12 @@
 アイコン, 通過駅ポップアップ, 実況テロップ, スコアボードを描画する。
 フレームをPNG連番で書き出し、最後にffmpegでmp4にエンコードする。
 """
+import base64
+import binascii
+import io
 import math
 import os
+import re
 import shutil
 import subprocess
 
@@ -15,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from .geo import project, CANVAS_W, CANVAS_H, SAFE_BOTTOM_Y, MAP_TOP, MAP_BOTTOM
 from .motion import RouteMotion
 from .commentary import build_events, write_script_files
-from .flight_route import leg_icon_at, leg_status_at
+from .flight_route import leg_icon_at, leg_status_at, leg_icon_path_at
 from . import fonts as _fonts
 
 FONT_BOLD, _FONT_REGULAR, FONT_BLACK = _fonts.resolve()
@@ -34,17 +38,69 @@ def ease_out_back(x):
     return 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2
 
 
+_icon_image_cache = {}
+
+
+_DATA_URI_RE = re.compile(r"^data:image/[a-zA-Z0-9.+-]+;base64,")
+
+
+def load_icon_image(path, size=54):
+    """任意の画像を、指定サイズ(幅 size*1.6)にリサイズして読み込む。
+    "path" には2種類を指定できる:
+      1) ファイルパス(透過PNG, 進行方向=右向き推奨) — 従来通り
+      2) "data:image/png;base64,...." のような data URI — ブラウザの
+         config作成ツール(レースビルダー)で画像ファイルを直接選んだ場合、
+         `assets/` に置かず、選んだ画像をそのままconfigのJSONに埋め込める
+         ようにするためのもの。
+    同じ(path, size)の組み合わせはキャッシュを使い回す(動画は数百
+    フレームあるため、毎フレーム開き直さない/デコードし直さない)。
+    path が空/不正/存在しない場合はNoneを返す(呼び出し側は描画
+    プレースホルダーにフォールバックする)。"""
+    if not path:
+        return None
+    key = (path, size)
+    if key in _icon_image_cache:
+        return _icon_image_cache[key]
+    img = None
+    raw = None
+    if _DATA_URI_RE.match(path):
+        b64_part = path.split(",", 1)[1] if "," in path else ""
+        try:
+            raw_bytes = base64.b64decode(b64_part, validate=False)
+            raw = Image.open(io.BytesIO(raw_bytes)).convert("RGBA")
+        except (binascii.Error, ValueError, OSError):
+            raw = None
+    elif os.path.exists(path):
+        raw = Image.open(path).convert("RGBA")
+    if raw is not None:
+        w = size * 1.6
+        h = w * raw.height / raw.width
+        img = raw.resize((max(1, int(w)), max(1, int(h))))
+    _icon_image_cache[key] = img
+    return img
+
+
 def load_icon(route_cfg, size=54):
     """config で icon_path (透過PNG, 進行方向=右向き推奨)が指定されていれば読み込む。
     無ければ簡易な非回転プレースホルダーアイコンを描く。どちらも回転はさせない
     (要件: 車両アイコンは回転しない)。"""
-    path = route_cfg.get("icon_path")
-    if path and os.path.exists(path):
-        img = Image.open(path).convert("RGBA")
-        w = size * 1.6
-        h = w * img.height / img.width
-        return img.resize((int(w), int(h)))
-    return None  # None なら animate.py 側で描画プレースホルダーを使う
+    return load_icon_image(route_cfg.get("icon_path"), size=size)
+
+
+def resolve_icon_img(route, real_min, kind, size):
+    """このルートの real_min 時点で使う車両アイコン画像を解決する。
+    優先順位: (1) 現在のleg専用のicon_path(乗り換えで路線が変わる区間、
+    飛行機、バス=市内移動など、legごとに見た目を変えたい場合) →
+    (2) ルート全体の既定icon_path(train/未指定のアイコンのみに適用。
+    飛行機やバス等、明示的に別の種別を選んでいるのに既定画像を流用すると
+    見た目が合わないため) → (3) None(呼び出し側がベクターの
+    プレースホルダーアイコンを描く)。"""
+    leg_path = leg_icon_path_at(route, real_min)
+    if leg_path:
+        return load_icon_image(leg_path, size=size)
+    if kind in (None, "train"):
+        return load_icon_image(route.get("icon_path"), size=size)
+    return None
 
 
 def draw_train_icon(canvas_rgba, cx, cy, color, icon_img=None, size=54):
@@ -71,9 +127,15 @@ def draw_train_icon(canvas_rgba, cx, cy, color, icon_img=None, size=54):
     canvas_rgba.alpha_composite(layer)
 
 
-def draw_plane_icon(canvas_rgba, cx, cy, color, size=54):
+def draw_plane_icon(canvas_rgba, cx, cy, color, icon_img=None, size=54):
     """飛行機アイコン(進行方向には回転させない。要件どおり車両アイコンは
-    常に同じ向きで表示する、という既存仕様を飛行機にもそのまま適用)。"""
+    常に同じ向きで表示する、という既存仕様を飛行機にもそのまま適用)。
+    icon_img(config の icon_path で指定した透過PNG)があれば、それを
+    そのまま貼り付ける。"""
+    if icon_img is not None:
+        w, h = icon_img.size
+        canvas_rgba.alpha_composite(icon_img, (int(cx - w / 2), int(cy - h / 2)))
+        return
     w = size
     layer = Image.new("RGBA", canvas_rgba.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
@@ -90,8 +152,13 @@ def draw_plane_icon(canvas_rgba, cx, cy, color, size=54):
     canvas_rgba.alpha_composite(layer)
 
 
-def draw_wait_icon(canvas_rgba, cx, cy, color, size=44):
-    """待機中(搭乗待ち・降機後の待機など)のアイコン。時計のシンプルな形。"""
+def draw_wait_icon(canvas_rgba, cx, cy, color, icon_img=None, size=44):
+    """待機中(搭乗待ち・降機後の待機など)のアイコン。時計のシンプルな形。
+    icon_imgがあればそれを貼り付ける。"""
+    if icon_img is not None:
+        w, h = icon_img.size
+        canvas_rgba.alpha_composite(icon_img, (int(cx - w / 2), int(cy - h / 2)))
+        return
     layer = Image.new("RGBA", canvas_rgba.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     r = size * 0.32
@@ -102,7 +169,12 @@ def draw_wait_icon(canvas_rgba, cx, cy, color, size=44):
     canvas_rgba.alpha_composite(layer)
 
 
-def draw_bus_icon(canvas_rgba, cx, cy, color, size=48):
+def draw_bus_icon(canvas_rgba, cx, cy, color, icon_img=None, size=48):
+    """バス(市内移動など)のアイコン。icon_imgがあればそれを貼り付ける。"""
+    if icon_img is not None:
+        w, h = icon_img.size
+        canvas_rgba.alpha_composite(icon_img, (int(cx - w / 2), int(cy - h / 2)))
+        return
     layer = Image.new("RGBA", canvas_rgba.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     w, h = size, size * 0.55
@@ -116,7 +188,12 @@ def draw_bus_icon(canvas_rgba, cx, cy, color, size=48):
     canvas_rgba.alpha_composite(layer)
 
 
-def draw_walk_icon(canvas_rgba, cx, cy, color, size=40):
+def draw_walk_icon(canvas_rgba, cx, cy, color, icon_img=None, size=40):
+    """徒歩のアイコン。icon_imgがあればそれを貼り付ける。"""
+    if icon_img is not None:
+        w, h = icon_img.size
+        canvas_rgba.alpha_composite(icon_img, (int(cx - w / 2), int(cy - h / 2)))
+        return
     layer = Image.new("RGBA", canvas_rgba.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     s = size / 40.0
@@ -130,7 +207,12 @@ def draw_walk_icon(canvas_rgba, cx, cy, color, size=40):
     canvas_rgba.alpha_composite(layer)
 
 
-def draw_monorail_icon(canvas_rgba, cx, cy, color, size=54):
+def draw_monorail_icon(canvas_rgba, cx, cy, color, icon_img=None, size=54):
+    """モノレールのアイコン。icon_imgがあればそれを貼り付ける。"""
+    if icon_img is not None:
+        w, h = icon_img.size
+        canvas_rgba.alpha_composite(icon_img, (int(cx - w / 2), int(cy - h / 2)))
+        return
     layer = Image.new("RGBA", canvas_rgba.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     w, h = size, size * 0.5
@@ -145,18 +227,20 @@ def draw_monorail_icon(canvas_rgba, cx, cy, color, size=54):
 
 def draw_icon_by_kind(kind, canvas_rgba, cx, cy, color, icon_img=None, size=54):
     """アイコン種別(train/plane/wait/bus/walk/monorail)ごとの描画を振り分ける。
-    "legs" を持たない従来のルート(train_race_kansai の駅レース等)は
-    今まで通り draw_train_icon がそのまま呼ばれるので、挙動は変わらない。"""
+    icon_img(resolve_icon_img() で解決したconfigのicon_path画像)が
+    あれば、種別を問わずその画像をそのまま貼り付ける(乗り換えでの
+    アイコン切り替え・飛行機/バス=市内移動の画像選択に対応するため)。
+    無ければ従来通り、種別ごとのベクタープレースホルダーを描く。"""
     if kind == "plane":
-        draw_plane_icon(canvas_rgba, cx, cy, color, size=size)
+        draw_plane_icon(canvas_rgba, cx, cy, color, icon_img=icon_img, size=size)
     elif kind == "wait":
-        draw_wait_icon(canvas_rgba, cx, cy, color, size=size)
+        draw_wait_icon(canvas_rgba, cx, cy, color, icon_img=icon_img, size=size)
     elif kind == "bus":
-        draw_bus_icon(canvas_rgba, cx, cy, color, size=size)
+        draw_bus_icon(canvas_rgba, cx, cy, color, icon_img=icon_img, size=size)
     elif kind == "walk":
-        draw_walk_icon(canvas_rgba, cx, cy, color, size=size)
+        draw_walk_icon(canvas_rgba, cx, cy, color, icon_img=icon_img, size=size)
     elif kind == "monorail":
-        draw_monorail_icon(canvas_rgba, cx, cy, color, size=size)
+        draw_monorail_icon(canvas_rgba, cx, cy, color, icon_img=icon_img, size=size)
     else:  # "train" / None / 未知の種別はプレースホルダー電車アイコンに揃える
         draw_train_icon(canvas_rgba, cx, cy, color, icon_img=icon_img, size=size)
 
@@ -372,7 +456,7 @@ def draw_scoreboard(canvas_rgba, route_list, motions, real_mins, bar_top=None):
         if not finished:
             kind = leg_icon_at(route, rmin)
             status_text = leg_status_at(route, rmin)
-            icon_slots.append((icon_x, y, kind, color))
+            icon_slots.append((icon_x, y, kind, color, route, rmin))
             if status_text:
                 max_w = bar_x0 - 16 - status_x0
                 st = status_text
@@ -382,8 +466,9 @@ def draw_scoreboard(canvas_rgba, route_list, motions, real_mins, bar_top=None):
                     st = st[:-1] + "…"
                 d.text((status_x0, y), st, font=f_status, fill=(230, 230, 240, 255), anchor="lm")
     canvas_rgba.alpha_composite(layer)
-    for ix, iy, kind, color in icon_slots:
-        draw_icon_by_kind(kind, canvas_rgba, ix, iy, color, icon_img=None, size=32)
+    for ix, iy, kind, color, route, rmin in icon_slots:
+        row_icon_img = resolve_icon_img(route, rmin, kind, size=32)
+        draw_icon_by_kind(kind, canvas_rgba, ix, iy, color, icon_img=row_icon_img, size=32)
 
 
 RESULT_TIE_EPSILON_MIN = 1e-6
@@ -458,8 +543,6 @@ def render(config, paths, base_map_rgba, proj, out_dir="output", frames_dir="fra
     # (ナレーション収録や動画編集ソフトでの字幕付けに使える)。
     show_captions = bool(config.get("show_captions", False))
 
-    icons = {r["key"]: load_icon(r_cfg) for r, r_cfg in zip(route_list, config["routes"])}
-
     total_video_sec = timeline[-1]["t_end"] + outro_hold
     fps = 10 if fast_preview else fps
 
@@ -511,10 +594,11 @@ def render(config, paths, base_map_rgba, proj, out_dir="output", frames_dir="fra
             x, y = project(proj, lon, lat)
             ix, iy = marker_offset(x, y, marker_index, n_routes_marker)
             kind = leg_icon_at(r, real_mins[r["key"]])  # "legs"が無いルートはNone(=従来通り)
+            marker_icon_img = resolve_icon_img(r, real_mins[r["key"]], kind, size=54)
             # 地図上を実際に動くのは小さなドットのみ。引き出し線の先には
             # アイコン画像だけを表示する(ステータス文言はスコアボード側)。
             draw_moving_marker(canvas, x, y, ix, iy, kind, color_by_key[r["key"]],
-                                icon_img=icons[r["key"]])
+                                icon_img=marker_icon_img)
 
         for r in route_list:
             for st in r["stations"]:
