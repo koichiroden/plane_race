@@ -323,28 +323,46 @@ def draw_popup(canvas_rgba, proj, station, elapsed, color):
     canvas_rgba.alpha_composite(layer)
 
 
-def draw_goal_popup(canvas_rgba, x, y, color, elapsed, icon_size=54):
+GOAL_POPUP_FADE_OUT = 0.35  # 全ルートがゴールした後、Goal!ポップアップが消えるまでのフェード時間(秒)
+
+
+def draw_goal_popup(canvas_rgba, x, y, color, local_elapsed, global_fade_elapsed, icon_size=54):
     """そのルートがゴール(目的地)に到達した際、アイコンの真上に
-    「Goal!」と短時間だけ表示するポップアップ。draw_popup() の通過駅
-    ポップアップとは別物で、(1) 表示時間がより短く(「少しだけ」)、
-    (2) 文字色は白固定ではなく、そのルートの線の色(color)に合わせる。
-    スコアボード側の既存の " GOAL" 文字表示(draw_scoreboard)とも別物。"""
-    if elapsed < 0.15:
-        t = elapsed / 0.15
+    「Goal!」というポップアップを表示する。draw_popup() の通過駅
+    ポップアップとは別物で、(1) 文字色は白固定ではなく、そのルートの線の色
+    (color)に合わせ、(2) 先にゴールしたルートのポップアップは、まだゴール
+    していない(遅い)ルートがゴールするまで消さずに表示し続け、全ルートが
+    ゴールした時点で一斉にフェードアウトする(「遅いほうがつくまで出続け
+    ていたほうがいい」という要望に対応)。スコアボード側の既存の " GOAL"
+    文字表示(draw_scoreboard)とも別物。
+
+    local_elapsed: このルート自身がゴールしてからの経過秒(ポップアップの
+        登場アニメーションに使う)。
+    global_fade_elapsed: 全ルートの中で最後にゴールした時刻からの経過秒
+        (負の値なら、まだ他のルートがゴールしていない=フェードアウト前)。
+        全ルート共通のこの値でフェードアウトのタイミングを揃える。
+    """
+    if local_elapsed < 0.15:
+        t = local_elapsed / 0.15
         scale = 0.3 + 1.9 * ease_out_back(t)
-        alpha = int(255 * min(1.0, t * 1.3))
-    elif elapsed < 0.35:
-        t = (elapsed - 0.15) / 0.20
+        alpha_in = min(1.0, t * 1.3)
+    elif local_elapsed < 0.35:
+        t = (local_elapsed - 0.15) / 0.20
         scale = 2.2 - 1.2 * t
-        alpha = 255
-    elif elapsed < 0.75:
-        scale = 1.0
-        alpha = 255
-    elif elapsed < 1.05:
-        t = (elapsed - 0.75) / 0.30
-        scale = 1.0
-        alpha = int(255 * (1 - t))
+        alpha_in = 1.0
     else:
+        scale = 1.0
+        alpha_in = 1.0
+
+    if global_fade_elapsed <= 0:
+        alpha_out = 1.0
+    elif global_fade_elapsed < GOAL_POPUP_FADE_OUT:
+        alpha_out = 1.0 - (global_fade_elapsed / GOAL_POPUP_FADE_OUT)
+    else:
+        return  # 全ルートがゴールしてから既に十分時間が経ち、フェードアウト完了
+
+    alpha = int(255 * alpha_in * alpha_out)
+    if alpha <= 0:
         return
 
     f = font(FONT_BLACK, int(30 * scale), index=0)
@@ -591,6 +609,10 @@ def render(config, paths, base_map_rgba, proj, out_dir="output", frames_dir="fra
 
     result_start = max(m.total_min for m in motions.values()) * ratio + intro_sec + 1.0
     color_by_key = {r["key"]: tuple(r["color"]) for r in route_list}
+    # 最後(最も遅い)ルートがゴールする時刻。Goal!ポップアップは、先にゴール
+    # したルートも含めて全ルートがこの時刻に達するまで表示し続け、ここから
+    # 一斉にフェードアウトする。
+    last_goal_t = max(intro_sec + r["total_min"] * ratio for r in route_list)
 
     # プログレスバーの表示位置: 路線の描画がコンパクトで画面上部〜中央寄りに
     # 収まっている場合ほど、路線のすぐ下(+少し余白)まで詰める。
@@ -639,18 +661,21 @@ def render(config, paths, base_map_rgba, proj, out_dir="output", frames_dir="fra
             marker_icon_pos[r["key"]] = (ix, iy)
 
         # ゴール(目的地)に到達したルートのアイコンの真上に、そのルートの
-        # 線の色で「Goal!」を短時間だけポップアップ表示する。通過駅の
-        # draw_popup() やスコアボードの " GOAL" 文字表示(draw_scoreboard)
-        # とは別物。到達直後の一定時間だけ(draw_goal_popup内でelapsedに
-        # 応じてフェードアウトし、以降は何も描かれない)。
-        for r in route_list:
-            m = motions[r["key"]]
-            if m.finished(real_mins[r["key"]]):
-                t_reach_goal = intro_sec + r["total_min"] * ratio
-                elapsed_goal = t - t_reach_goal
-                if 0 <= elapsed_goal <= 1.05:
-                    ix, iy = marker_icon_pos[r["key"]]
-                    draw_goal_popup(canvas, ix, iy, color_by_key[r["key"]], elapsed_goal)
+        # 線の色で「Goal!」をポップアップ表示する。通過駅の draw_popup() や
+        # スコアボードの " GOAL" 文字表示(draw_scoreboard)とは別物。先に
+        # ゴールしたルートのポップアップも、まだの(遅い)ルートがゴールする
+        # まで表示し続け、全ルートがゴールしたら一斉にフェードアウトする。
+        global_fade_elapsed = t - last_goal_t
+        if global_fade_elapsed < GOAL_POPUP_FADE_OUT:
+            for r in route_list:
+                m = motions[r["key"]]
+                if m.finished(real_mins[r["key"]]):
+                    t_reach_goal = intro_sec + r["total_min"] * ratio
+                    local_elapsed = t - t_reach_goal
+                    if local_elapsed >= 0:
+                        ix, iy = marker_icon_pos[r["key"]]
+                        draw_goal_popup(canvas, ix, iy, color_by_key[r["key"]],
+                                         local_elapsed, global_fade_elapsed)
 
         for r in route_list:
             for st in r["stations"]:
