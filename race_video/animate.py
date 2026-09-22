@@ -323,6 +323,50 @@ def draw_popup(canvas_rgba, proj, station, elapsed, color):
     canvas_rgba.alpha_composite(layer)
 
 
+def draw_goal_popup(canvas_rgba, x, y, color, elapsed, icon_size=54):
+    """そのルートがゴール(目的地)に到達した際、アイコンの真上に
+    「Goal!」と短時間だけ表示するポップアップ。draw_popup() の通過駅
+    ポップアップとは別物で、(1) 表示時間がより短く(「少しだけ」)、
+    (2) 文字色は白固定ではなく、そのルートの線の色(color)に合わせる。
+    スコアボード側の既存の " GOAL" 文字表示(draw_scoreboard)とも別物。"""
+    if elapsed < 0.15:
+        t = elapsed / 0.15
+        scale = 0.3 + 1.9 * ease_out_back(t)
+        alpha = int(255 * min(1.0, t * 1.3))
+    elif elapsed < 0.35:
+        t = (elapsed - 0.15) / 0.20
+        scale = 2.2 - 1.2 * t
+        alpha = 255
+    elif elapsed < 0.75:
+        scale = 1.0
+        alpha = 255
+    elif elapsed < 1.05:
+        t = (elapsed - 0.75) / 0.30
+        scale = 1.0
+        alpha = int(255 * (1 - t))
+    else:
+        return
+
+    f = font(FONT_BLACK, int(30 * scale), index=0)
+    text = "Goal!"
+    bbox = f.getbbox(text)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    pad_x, pad_y = 18 * scale, 10 * scale
+    top_offset = icon_size * 0.62 + th + pad_y * 2 + 6
+    bx0, by0 = x - tw / 2 - pad_x, y - top_offset - pad_y
+    bx1, by1 = x + tw / 2 + pad_x, y - top_offset + th + pad_y
+
+    layer = Image.new("RGBA", canvas_rgba.size, (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    ld.rounded_rectangle([bx0, by0, bx1, by1], radius=12 * scale,
+                          fill=(15, 18, 30, int(230 * (alpha / 255))),
+                          outline=color + (alpha,), width=3)
+    ld.polygon([(x - 9 * scale, by1), (x + 9 * scale, by1), (x, by1 + 14 * scale)],
+               fill=(15, 18, 30, int(230 * (alpha / 255))))
+    ld.text((x, (by0 + by1) / 2), text, font=f, fill=color + (alpha,), anchor="mm")
+    canvas_rgba.alpha_composite(layer)
+
+
 def draw_leg_status(canvas_rgba, x, y, text, color, icon_size=54):
     """アイコンのすぐそばに、現在の状態(「搭乗待ち」「鉄道移動中」等)を
     常時(フェードなしで)表示する小さなラベル。draw_popup() の通過駅
@@ -580,6 +624,7 @@ def render(config, paths, base_map_rgba, proj, out_dir="output", frames_dir="fra
             draw_progress_route(canvas, proj, r, motions[r["key"]], real_mins[r["key"]], color_by_key[r["key"]])
 
         n_routes_marker = len(route_list)
+        marker_icon_pos = {}
         for idx, r in enumerate(reversed(route_list)):
             marker_index = n_routes_marker - 1 - idx  # route_list本来の並び順で扇状に配置する
             lon, lat = motions[r["key"]].lonlat_at(real_mins[r["key"]])
@@ -591,6 +636,21 @@ def render(config, paths, base_map_rgba, proj, out_dir="output", frames_dir="fra
             # アイコン画像だけを表示する(ステータス文言はスコアボード側)。
             draw_moving_marker(canvas, x, y, ix, iy, kind, color_by_key[r["key"]],
                                 icon_img=marker_icon_img)
+            marker_icon_pos[r["key"]] = (ix, iy)
+
+        # ゴール(目的地)に到達したルートのアイコンの真上に、そのルートの
+        # 線の色で「Goal!」を短時間だけポップアップ表示する。通過駅の
+        # draw_popup() やスコアボードの " GOAL" 文字表示(draw_scoreboard)
+        # とは別物。到達直後の一定時間だけ(draw_goal_popup内でelapsedに
+        # 応じてフェードアウトし、以降は何も描かれない)。
+        for r in route_list:
+            m = motions[r["key"]]
+            if m.finished(real_mins[r["key"]]):
+                t_reach_goal = intro_sec + r["total_min"] * ratio
+                elapsed_goal = t - t_reach_goal
+                if 0 <= elapsed_goal <= 1.05:
+                    ix, iy = marker_icon_pos[r["key"]]
+                    draw_goal_popup(canvas, ix, iy, color_by_key[r["key"]], elapsed_goal)
 
         for r in route_list:
             for st in r["stations"]:
