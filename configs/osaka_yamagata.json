@@ -1,9 +1,9 @@
 {
-  "slug": "osaka_sendai",
-  "title_line1": "大阪（新大阪）→仙台",
+  "slug": "osaka_yamagata",
+  "title_line1": "大阪（新大阪）→山形",
   "title_line2": "新幹線 vs 飛行機 どっちが早い!?",
   "start_name": "新大阪",
-  "end_label": "仙台",
+  "end_label": "山形",
   "video_duration_sec": 30,
   "intro_sec": 2,
   "outro_hold_sec": 4,
@@ -13,7 +13,7 @@
     {
       "key": "route_a",
       "mode": "legs",
-      "name": "新大阪 → 仙台",
+      "name": "新大阪 → 山形",
       "short_name": "鉄道",
       "color": [
         255,
@@ -315,7 +315,7 @@
           "icon_path": null,
           "node_id": "rail_1",
           "t_start": 51,
-          "t_end": 129,
+          "t_end": 132,
           "label": "新横浜",
           "popup": true
         },
@@ -358,8 +358,8 @@
           "icon": "train",
           "icon_path": null,
           "node_id": "rail_1",
-          "t_start": 129,
-          "t_end": 147,
+          "t_start": 132,
+          "t_end": 150,
           "label": "東京",
           "popup": true
         },
@@ -370,8 +370,8 @@
             35.68296
           ],
           "icon": "wait",
-          "t_start": 147,
-          "t_end": 158,
+          "t_start": 150,
+          "t_end": 165,
           "label": "東京(待ち時間)"
         },
         {
@@ -413,8 +413,8 @@
           "icon": "train",
           "icon_path": null,
           "node_id": "rail_2",
-          "t_start": 158,
-          "t_end": 183,
+          "t_start": 165,
+          "t_end": 190,
           "label": "大宮",
           "popup": true
         },
@@ -508,42 +508,86 @@
             [
               140.45887,
               37.76377
-            ],
-            [
-              140.4989,
-              37.83186
-            ],
-            [
-              140.64465,
-              38.00846
-            ],
-            [
-              140.87105,
-              38.17871
-            ],
-            [
-              140.88642,
-              38.23057
-            ],
-            [
-              140.89405,
-              38.23873
-            ],
-            [
-              140.88231,
-              38.25558
-            ],
-            [
-              140.88312,
-              38.26379
             ]
           ],
           "icon": "train",
           "icon_path": null,
           "node_id": "rail_2",
-          "t_start": 183,
-          "t_end": 251,
-          "label": "仙台",
+          "t_start": 190,
+          "t_end": 261,
+          "label": "福島",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              140.45887,
+              37.76377
+            ],
+            [
+              140.4,
+              37.78
+            ],
+            [
+              140.25,
+              37.85
+            ],
+            [
+              140.17,
+              37.9
+            ],
+            [
+              140.1194,
+              37.9223
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_2",
+          "t_start": 261,
+          "t_end": 294,
+          "label": "米沢",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              140.1194,
+              37.9223
+            ],
+            [
+              140.1414,
+              38.0011
+            ],
+            [
+              140.1123,
+              38.0356
+            ],
+            [
+              140.15,
+              38.07
+            ],
+            [
+              140.2686,
+              38.1508
+            ],
+            [
+              140.32,
+              38.2
+            ],
+            [
+              140.3389,
+              38.2413
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_2",
+          "t_start": 294,
+          "t_end": 330,
+          "label": "山形",
           "popup": true
         }
       ]
@@ -551,7 +595,7 @@
     {
       "key": "route_b",
       "mode": "legs",
-      "name": "新大阪 → 仙台",
+      "name": "新大阪 → 山形",
       "short_name": "飛行機",
       "color": [
         79,
@@ -587,7 +631,7 @@
           ],
           "icon": "wait",
           "t_start": 25,
-          "t_end": 70,
+          "t_end": 75,
           "label": "大阪国際空港(待ち時間)"
         },
         {
@@ -597,44 +641,44 @@
             34.791361
           ],
           "to": [
-            140.92925,
-            38.138167
+            140.366333,
+            38.410667
           ],
           "icon": "plane",
           "icon_path": null,
           "node_id": "flight_2",
-          "t_start": 70,
-          "t_end": 140,
-          "label": "仙台空港",
+          "t_start": 75,
+          "t_end": 145,
+          "label": "山形空港",
           "popup": true
         },
         {
           "kind": "wait",
           "at": [
-            140.92925,
-            38.138167
+            140.366333,
+            38.410667
           ],
           "icon": "wait",
-          "t_start": 140,
-          "t_end": 168,
-          "label": "仙台空港(待ち時間)"
+          "t_start": 145,
+          "t_end": 165,
+          "label": "山形空港(待ち時間)"
         },
         {
           "kind": "straight",
           "from": [
-            140.92925,
-            38.138167
+            140.366333,
+            38.410667
           ],
           "to": [
-            140.8819,
-            38.2603
+            140.3389,
+            38.2413
           ],
-          "icon": "train",
+          "icon": "bus",
           "icon_path": null,
           "node_id": "flight_3",
-          "t_start": 168,
-          "t_end": 193,
-          "label": "仙台",
+          "t_start": 165,
+          "t_end": 203,
+          "label": "山形",
           "popup": true
         }
       ]
