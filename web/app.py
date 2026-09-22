@@ -293,7 +293,7 @@ PAGE = """<!doctype html>
 
 <script>
 let knownIcons = {{ icons|tojson }};
-let iconOverrides = {};  // ターゲットkey("<routeIndex>:<legIndex|null>") -> icon_path("" ならデフォルトアイコン)
+let iconOverrides = {};  // ターゲットkey -> icon_path("" ならデフォルトアイコン)
 
 const ICON_TYPE_LABEL = {plane: "飛行機", train: "電車・新幹線", bus: "バス", walk: "徒歩", monorail: "モノレール"};
 
@@ -310,33 +310,50 @@ function configFromTextarea() {
   return null;
 }
 
-// 駅レースビルダー(ノード方式)で作ったJSONは、区間(ノード)ごとに別々の
-// icon_path を持てるようになっている。そのため、このページ側でも
-// カテゴリ単位(飛行機/新幹線/鉄道…)でまとめてしまうのではなく、
-// 待機(wait)以外の leg を1つ1つ個別に選べるようにする。
-// legIndex が null のターゲットは leg を持たない従来ルートで、route.icon_path を
-// そのまま上書きする対象になる。
-function legTargetLabel(cfg, ri, li) {
-  const route = cfg.routes[ri];
-  const routeName = route.short_name || route.name || ("ルート" + (ri + 1));
-  if (li === null) return routeName;
-  const leg = route.legs[li];
-  const kindLabel = ICON_TYPE_LABEL[leg.icon] || leg.icon || "";
-  const detail = leg.label || kindLabel;
-  return routeName + " " + (li + 1) + (detail ? ": " + detail : "");
-}
-
+// 駅レースビルダー(ノード方式)で作ったJSONでは、1つのノード(区間)が
+// 経由駅の分だけ複数の leg に分割されていることがある(例: 新幹線の
+// 東京→岡山→博多は、東京→岡山・岡山→博多の2つの leg に分かれる)。
+// これらは同じ leg.node_id を共有しているので、ここではその node_id で
+// まとめて1行のアイコン選択にする(＝ユーザーがビルダーで追加した
+// 「ノード」の単位と一致させる)。node_id を持たない古い形式のJSONは、
+// leg 1つ1つを個別のターゲットとして扱う(従来通り)。
+// legIndexes が null のターゲットは leg を持たない従来ルートで、
+// route.icon_path をそのまま上書きする対象になる。
 function buildLegTargets(cfg) {
   const targets = [];
   cfg.routes.forEach((r, ri) => {
+    const routeName = r.short_name || r.name || ("ルート" + (ri + 1));
     if (Array.isArray(r.legs) && r.legs.length) {
+      const groups = [];                 // [{nodeId, legIndexes:[...]}] 出現順
+      const groupByNodeId = new Map();
       r.legs.forEach((leg, li) => {
         if (leg.kind === "wait" || leg.icon === "wait") return; // 待機中は対象外
-        targets.push({key: ri + ":" + li, routeIndex: ri, legIndex: li, label: legTargetLabel(cfg, ri, li)});
+        if (leg.node_id) {
+          let g = groupByNodeId.get(leg.node_id);
+          if (!g) {
+            g = {nodeId: leg.node_id, legIndexes: []};
+            groupByNodeId.set(leg.node_id, g);
+            groups.push(g);
+          }
+          g.legIndexes.push(li);
+        } else {
+          groups.push({nodeId: null, legIndexes: [li]});
+        }
+      });
+      groups.forEach((g, gi) => {
+        const legs = g.legIndexes.map(li => r.legs[li]);
+        const lastLeg = legs[legs.length - 1];
+        const kindLabel = ICON_TYPE_LABEL[lastLeg.icon] || lastLeg.icon || "";
+        const detail = lastLeg.label || kindLabel;
+        const key = g.nodeId ? (ri + ":node:" + g.nodeId) : (ri + ":leg:" + g.legIndexes[0]);
+        targets.push({
+          key, routeIndex: ri, legIndexes: g.legIndexes,
+          label: routeName + " " + (gi + 1) + (detail ? ": " + detail : ""),
+        });
       });
     } else {
       // legsを持たない従来ルートは、ルート全体を1つのターゲットとして扱う
-      targets.push({key: ri + ":null", routeIndex: ri, legIndex: null, label: legTargetLabel(cfg, ri, null)});
+      targets.push({key: ri + ":route", routeIndex: ri, legIndexes: null, label: routeName});
     }
   });
   return targets;
@@ -357,7 +374,7 @@ function renderIconPicker() {
   }
   wrap.innerHTML = "";
   targets.forEach(t => {
-    const obj = t.legIndex === null ? cfg.routes[t.routeIndex] : cfg.routes[t.routeIndex].legs[t.legIndex];
+    const obj = t.legIndexes === null ? cfg.routes[t.routeIndex] : cfg.routes[t.routeIndex].legs[t.legIndexes[0]];
     const original = (obj && obj.icon_path) || "";
     const current = Object.prototype.hasOwnProperty.call(iconOverrides, t.key) ? iconOverrides[t.key] : original;
     const row = document.createElement("div");
@@ -539,17 +556,27 @@ document.getElementById("paste-btn").addEventListener("click", () => {
   try {
     const cfg = JSON.parse(text);
     if (Array.isArray(cfg.routes)) {
+      // 表示中と同じ規則(node_id単位のグルーピング)でターゲットを組み立て直し、
+      // 選んだアイコンをそのグループに属する leg 全部(=1つのノード分)に適用する。
+      const targetByKey = {};
+      buildLegTargets(cfg).forEach(t => { targetByKey[t.key] = t; });
       Object.keys(iconOverrides).forEach(key => {
+        const t = targetByKey[key];
+        if (!t) return;
         const val = iconOverrides[key];
-        const [riStr, liStr] = key.split(":");
-        const ri = Number(riStr);
-        const li = liStr === "null" ? null : Number(liStr);
-        const route = cfg.routes[ri];
+        const route = cfg.routes[t.routeIndex];
         if (!route) return;
-        const obj = li === null ? route : (route.legs || [])[li];
-        if (!obj) return;
-        if (val) obj.icon_path = val;
-        else delete obj.icon_path;
+        if (t.legIndexes === null) {
+          if (val) route.icon_path = val;
+          else delete route.icon_path;
+        } else {
+          t.legIndexes.forEach(li => {
+            const leg = (route.legs || [])[li];
+            if (!leg) return;
+            if (val) leg.icon_path = val;
+            else delete leg.icon_path;
+          });
+        }
       });
       text = JSON.stringify(cfg);
     }
