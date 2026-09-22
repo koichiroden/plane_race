@@ -526,14 +526,14 @@ def draw_result_panel(canvas_rgba, config, route_list, alpha):
 
     d.text((cx, cy - 180), "RESULT", font=f_big, fill=(255, 215, 0, alpha), anchor="mm")
     if is_tie:
-        winners_label = "・".join(r["name"] for r in winners)
+        winners_label = "・".join(r["short_name"] for r in winners)
         d.text((cx, cy - 90), f"{winners_label} 同着!", font=f_mid, fill=(255, 255, 255, alpha), anchor="mm")
         d.text((cx, cy - 40), "( 引き分け )", font=f_mid, fill=(255, 215, 0, alpha), anchor="mm")
     else:
         winner = winners[0]
         other_times = [r["total_min"] for r in route_list if r is not winner]
         diff = min(other_times) - best_time
-        d.text((cx, cy - 90), f"{winner['name']} の勝ち!", font=f_mid, fill=(255, 255, 255, alpha), anchor="mm")
+        d.text((cx, cy - 90), f"{winner['short_name']} の勝ち!", font=f_mid, fill=(255, 255, 255, alpha), anchor="mm")
         d.text((cx, cy - 40), f"( 差 {diff:.0f} 分 )", font=f_mid, fill=tuple(winner["color"]) + (alpha,), anchor="mm")
 
     n = len(route_list)
