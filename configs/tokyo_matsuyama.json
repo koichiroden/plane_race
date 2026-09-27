@@ -1,9 +1,9 @@
 {
-  "slug": "tokyo_takamatsu",
-  "title_line1": "東京 → 高松",
+  "slug": "tokyo_matsuyama",
+  "title_line1": "東京 → 松山",
   "title_line2": "新幹線 vs 飛行機 どっちが早い!?",
   "start_name": "東京",
-  "end_label": "高松",
+  "end_label": "松山",
   "video_duration_sec": 30,
   "intro_sec": 2,
   "outro_hold_sec": 4,
@@ -13,7 +13,7 @@
     {
       "key": "route_a",
       "mode": "legs",
-      "name": "東京 → 高松",
+      "name": "東京 → 松山",
       "short_name": "鉄道",
       "color": [
         255,
@@ -223,7 +223,7 @@
           "icon_path": null,
           "node_id": "rail_1",
           "t_start": 0,
-          "t_end": 97,
+          "t_end": 98,
           "label": "名古屋",
           "popup": true
         },
@@ -342,7 +342,7 @@
           "icon": "train",
           "icon_path": null,
           "node_id": "rail_1",
-          "t_start": 97,
+          "t_start": 98,
           "t_end": 149,
           "label": "新大阪",
           "popup": true
@@ -451,7 +451,7 @@
           "icon_path": null,
           "node_id": "rail_1",
           "t_start": 149,
-          "t_end": 193,
+          "t_end": 197,
           "label": "岡山",
           "popup": true
         },
@@ -462,8 +462,8 @@
             34.66742
           ],
           "icon": "wait",
-          "t_start": 193,
-          "t_end": 210,
+          "t_start": 197,
+          "t_end": 227,
           "label": "岡山(待ち時間)"
         },
         {
@@ -474,56 +474,96 @@
               34.66742
             ],
             [
-              133.80339966300858,
-              34.46215073707352
+              133.828,
+              34.3104
             ]
           ],
           "icon": "train",
           "icon_path": null,
-          "node_id": "rail_2",
-          "t_start": 210,
-          "t_end": 234,
-          "label": "児島",
+          "node_id": "rail_4",
+          "t_start": 227,
+          "t_end": 267,
+          "label": "宇多津",
           "popup": true
         },
         {
           "kind": "coords",
           "coords": [
             [
-              133.80339966300858,
-              34.46215073707352
+              133.828,
+              34.3104
             ],
             [
-              133.85705248908155,
-              34.31520074698238
+              133.797,
+              34.2915
             ]
           ],
           "icon": "train",
           "icon_path": null,
-          "node_id": "rail_2",
-          "t_start": 234,
-          "t_end": 249,
-          "label": "坂出",
+          "node_id": "rail_4",
+          "t_start": 267,
+          "t_end": 270,
+          "label": "丸亀",
           "popup": true
         },
         {
           "kind": "coords",
           "coords": [
             [
-              133.85705248908155,
-              34.31520074698238
+              133.797,
+              34.2915
             ],
             [
-              134.0554,
-              34.34
+              133.753,
+              34.272
             ]
           ],
           "icon": "train",
           "icon_path": null,
-          "node_id": "rail_2",
-          "t_start": 249,
-          "t_end": 264,
-          "label": "高松",
+          "node_id": "rail_4",
+          "t_start": 270,
+          "t_end": 277,
+          "label": "多度津",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.753,
+              34.272
+            ],
+            [
+              132.997,
+              34.066
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_4",
+          "t_start": 277,
+          "t_end": 359,
+          "label": "今治",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              132.997,
+              34.066
+            ],
+            [
+              132.7594,
+              33.8455
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_4",
+          "t_start": 359,
+          "t_end": 395,
+          "label": "松山",
           "popup": true
         }
       ]
@@ -531,7 +571,7 @@
     {
       "key": "route_b",
       "mode": "legs",
-      "name": "東京 → 高松",
+      "name": "東京 → 松山",
       "short_name": "飛行機",
       "color": [
         79,
@@ -577,44 +617,44 @@
             35.548667
           ],
           "to": [
-            134.018333,
-            34.218667
+            132.704111,
+            33.828778
           ],
           "icon": "plane",
           "icon_path": null,
           "node_id": "flight_2",
           "t_start": 70,
-          "t_end": 150,
-          "label": "高松空港",
+          "t_end": 155,
+          "label": "松山空港",
           "popup": true
         },
         {
           "kind": "wait",
           "at": [
-            134.018333,
-            34.218667
+            132.704111,
+            33.828778
           ],
           "icon": "wait",
-          "t_start": 150,
-          "t_end": 165,
-          "label": "高松空港(待ち時間)"
+          "t_start": 155,
+          "t_end": 175,
+          "label": "松山空港(待ち時間)"
         },
         {
           "kind": "straight",
           "from": [
-            134.018333,
-            34.218667
+            132.704111,
+            33.828778
           ],
           "to": [
-            134.0554,
-            34.34
+            132.7594,
+            33.8455
           ],
           "icon": "bus",
           "icon_path": null,
           "node_id": "flight_3",
-          "t_start": 165,
-          "t_end": 215,
-          "label": "高松",
+          "t_start": 175,
+          "t_end": 195,
+          "label": "松山",
           "popup": true
         }
       ]
