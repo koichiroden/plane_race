@@ -32,6 +32,15 @@ def font(path, size, index=0):
     return ImageFont.truetype(path, size, index=index)
 
 
+def format_duration(total_min):
+    """所要時間(分)を「○:○○」形式(時:分、分は2桁ゼロ埋め)の文字列にする
+    (例: 45→"0:45", 70→"1:10", 255→"4:15")。スコアボード・RESULT画面の
+    時間表示で共通して使う。"""
+    total_min = max(0, round(total_min))
+    hours, mins = divmod(total_min, 60)
+    return f"{hours}:{mins:02d}"
+
+
 def ease_out_back(x):
     c1 = 1.70158
     c3 = c1 + 1
@@ -495,12 +504,17 @@ def draw_scoreboard(canvas_rgba, route_list, motions, real_mins, bar_top=None):
         # 絶対に下がらない位置を、render() 側と同じ式で逆算する。
         bar_top = SAFE_BOTTOM_Y - 15 - 15 - gap * (n_routes - 1)
     row_ys = [bar_top + i * gap for i in range(n_routes)]
+    # 最終順位の勝者(=所要時間が最短のルート)を判定しておく。ゴールした
+    # 時点で、この勝者だけ時間表示の末尾が「GOAL」ではなく「Win」になる
+    # (複数ルートが同着の場合は全員「Win」)。
+    best_time = min(r["total_min"] for r in route_list)
     for route, y in zip(route_list, row_ys):
         color = tuple(route["color"])
         m = motions[route["key"]]
         rmin = real_mins[route["key"]]
         frac = m.progress(rmin)
         finished = m.finished(rmin)
+        is_winner = abs(route["total_min"] - best_time) <= RESULT_TIE_EPSILON_MIN
         d.text((name_x, y), route["short_name"], font=f_name, fill=(255, 255, 255, 255), anchor="lm")
         name_bbox = f_name.getbbox(route["short_name"])
         status_x0 = max(min_status_x, name_x + (name_bbox[2] - name_bbox[0]) + 26)
@@ -508,8 +522,14 @@ def draw_scoreboard(canvas_rgba, route_list, motions, real_mins, bar_top=None):
         fill_x = bar_x0 + (bar_x1 - bar_x0) * frac
         if fill_x > bar_x0:
             d.rounded_rectangle([bar_x0, y - 10, fill_x, y + 10], radius=10, fill=color + (255,))
-        label = f"{min(rmin, route['total_min']):.0f}分" + (" GOAL" if finished else "")
-        d.text((1040, y), label, font=f_time, fill=(255, 255, 255, 255), anchor="rm")
+        time_str = format_duration(min(rmin, route["total_min"]))
+        if finished:
+            suffix = " Win" if is_winner else " GOAL"
+        else:
+            suffix = ""
+        label = time_str + suffix
+        label_color = (255, 215, 0, 255) if (finished and is_winner) else (255, 255, 255, 255)
+        d.text((1040, y), label, font=f_time, fill=label_color, anchor="rm")
         # 交通手段名とバーの間に、(legsモードなら)状態文言を表示する
         # (到着後は表示しない)。
         if not finished:
@@ -552,13 +572,16 @@ def draw_result_panel(canvas_rgba, config, route_list, alpha):
         other_times = [r["total_min"] for r in route_list if r is not winner]
         diff = min(other_times) - best_time
         d.text((cx, cy - 90), f"{winner['short_name']} の勝ち!", font=f_mid, fill=(255, 255, 255, alpha), anchor="mm")
-        d.text((cx, cy - 40), f"( 差 {diff:.0f} 分 )", font=f_mid, fill=tuple(winner["color"]) + (alpha,), anchor="mm")
+        d.text((cx, cy - 40), f"( 差 {format_duration(diff)} )", font=f_mid, fill=tuple(winner["color"]) + (alpha,), anchor="mm")
 
     n = len(route_list)
     xs = [cx + (i - (n - 1) / 2) * 300 for i in range(n)]
     for r, x in zip(route_list, xs):
+        is_winner = abs(r["total_min"] - best_time) <= RESULT_TIE_EPSILON_MIN
         d.text((x, cy + 60), r["short_name"], font=f_small, fill=tuple(r["color"]) + (alpha,), anchor="mm")
-        d.text((x, cy + 105), f"{r['total_min']}分", font=f_mid, fill=(255, 255, 255, alpha), anchor="mm")
+        time_label = format_duration(r["total_min"]) + (" Win" if is_winner else "")
+        time_color = (255, 215, 0, alpha) if is_winner else (255, 255, 255, alpha)
+        d.text((x, cy + 105), time_label, font=f_mid, fill=time_color, anchor="mm")
 
     canvas_rgba.alpha_composite(layer)
 

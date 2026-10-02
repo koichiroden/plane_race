@@ -316,15 +316,19 @@ def render_base_map(config, paths, geojson_path="data/routes.geojson"):
     tmp = Image.new("RGBA", (10, 10))
     tmpd = ImageDraw.Draw(tmp)
     for r in route_list:
-        w = tmpd.textlength(r["name"], font=f_legend) + 46
+        # 凡例には出発地→到着地の長い名称(r["name"])ではなく、
+        # スコアボードやRESULT画面と同じ短縮名(鉄道/飛行機など)を使う。
+        legend_text = r.get("short_name", r["name"])
+        w = tmpd.textlength(legend_text, font=f_legend) + 46
         swatches.append(w)
         total_w += w + 40
     total_w -= 40
     cx = CANVAS_W / 2 - total_w / 2
     ly = title_y2 + 60
     for r, w in zip(route_list, swatches):
+        legend_text = r.get("short_name", r["name"])
         draw.ellipse([cx, ly - 12, cx + 24, ly + 12], fill=tuple(r["color"]) + (255,))
-        draw.text((cx + 34, ly), r["name"], font=f_legend, fill=(255, 255, 255, 255), anchor="lm")
+        draw.text((cx + 34, ly), legend_text, font=f_legend, fill=(255, 255, 255, 255), anchor="lm")
         cx += w + 40
 
     return canvas, proj
