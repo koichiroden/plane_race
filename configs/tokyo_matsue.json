@@ -1,9 +1,9 @@
 {
-  "slug": "tokyo_kobe",
-  "title_line1": "東京 → 神戸（三宮）",
+  "slug": "tokyo_matsue",
+  "title_line1": "東京 → 松江",
   "title_line2": "新幹線 vs 飛行機 どっちが早い!?",
   "start_name": "東京",
-  "end_label": "神戸",
+  "end_label": "松江",
   "video_duration_sec": 30,
   "intro_sec": 2,
   "outro_hold_sec": 4,
@@ -13,7 +13,7 @@
     {
       "key": "route_a",
       "mode": "legs",
-      "name": "東京 → 神戸",
+      "name": "東京 → 松江",
       "short_name": "鉄道",
       "color": [
         255,
@@ -61,9 +61,9 @@
           ],
           "icon": "train",
           "icon_path": null,
-          "node_id": "rail_1",
+          "node_id": "rail_3",
           "t_start": 0,
-          "t_end": 19,
+          "t_end": 18,
           "label": "新横浜",
           "popup": true
         },
@@ -237,9 +237,9 @@
           ],
           "icon": "train",
           "icon_path": null,
-          "node_id": "rail_1",
-          "t_start": 19,
-          "t_end": 97,
+          "node_id": "rail_3",
+          "t_start": 18,
+          "t_end": 101,
           "label": "名古屋",
           "popup": true
         },
@@ -357,9 +357,9 @@
           ],
           "icon": "train",
           "icon_path": null,
-          "node_id": "rail_1",
-          "t_start": 97,
-          "t_end": 149,
+          "node_id": "rail_3",
+          "t_start": 101,
+          "t_end": 152,
           "label": "新大阪",
           "popup": true
         },
@@ -393,43 +393,173 @@
             [
               135.18889,
               34.70395
+            ],
+            [
+              135.00312,
+              34.66527
+            ],
+            [
+              134.95526,
+              34.66757
+            ],
+            [
+              134.9363,
+              34.6724
+            ],
+            [
+              134.88223,
+              34.70857
+            ],
+            [
+              134.72755,
+              34.82068
+            ],
+            [
+              134.63709,
+              34.83107
+            ],
+            [
+              134.55696,
+              34.82997
+            ],
+            [
+              134.51562,
+              34.81942
+            ],
+            [
+              134.44541,
+              34.81722
+            ],
+            [
+              134.3723,
+              34.78254
+            ],
+            [
+              134.30587,
+              34.77687
+            ],
+            [
+              134.23245,
+              34.75422
+            ],
+            [
+              134.17962,
+              34.74992
+            ],
+            [
+              134.03957,
+              34.7088
+            ],
+            [
+              133.9962,
+              34.6878
+            ],
+            [
+              133.92906,
+              34.68037
+            ],
+            [
+              133.90913,
+              34.66002
             ]
           ],
           "icon": "train",
           "icon_path": null,
-          "node_id": "rail_1",
-          "t_start": 149,
-          "t_end": 161,
-          "label": "新神戸",
+          "node_id": "rail_3",
+          "t_start": 152,
+          "t_end": 196,
+          "label": "岡山",
           "popup": true
         },
         {
           "kind": "wait",
           "at": [
-            135.19866,
-            34.7083
+            133.91917,
+            34.66742
           ],
           "icon": "wait",
-          "t_start": 161,
-          "t_end": 173,
-          "label": "新神戸(待ち時間)"
+          "t_start": 196,
+          "t_end": 271,
+          "label": "岡山(待ち時間)"
         },
         {
-          "kind": "straight",
-          "from": [
-            135.19866,
-            34.7083
-          ],
-          "to": [
-            135.1949,
-            34.6935
+          "kind": "coords",
+          "coords": [
+            [
+              133.91917,
+              34.66742
+            ],
+            [
+              133.772,
+              34.5966
+            ]
           ],
           "icon": "train",
           "icon_path": null,
-          "node_id": "rail_2",
-          "t_start": 173,
-          "t_end": 175,
-          "label": "神戸",
+          "node_id": "rail_4",
+          "t_start": 271,
+          "t_end": 282,
+          "label": "倉敷",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.772,
+              34.5966
+            ],
+            [
+              133.4526,
+              34.9855
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_4",
+          "t_start": 282,
+          "t_end": 334,
+          "label": "新見",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.4526,
+              34.9855
+            ],
+            [
+              133.336,
+              35.423
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_4",
+          "t_start": 334,
+          "t_end": 416,
+          "label": "米子",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.336,
+              35.423
+            ],
+            [
+              133.0505,
+              35.4723
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_4",
+          "t_start": 416,
+          "t_end": 438,
+          "label": "松江",
           "popup": true
         }
       ]
@@ -437,7 +567,7 @@
     {
       "key": "route_b",
       "mode": "legs",
-      "name": "東京 → 神戸",
+      "name": "東京 → 松江",
       "short_name": "飛行機",
       "color": [
         79,
@@ -459,7 +589,7 @@
           ],
           "icon": "train",
           "icon_path": null,
-          "node_id": "flight_1",
+          "node_id": "flight_4",
           "t_start": 0,
           "t_end": 35,
           "label": "東京国際空港",
@@ -473,7 +603,7 @@
           ],
           "icon": "wait",
           "t_start": 35,
-          "t_end": 85,
+          "t_end": 75,
           "label": "東京国際空港(待ち時間)"
         },
         {
@@ -483,44 +613,44 @@
             35.548667
           ],
           "to": [
-            135.2287,
-            34.636826
+            132.886056,
+            35.414861
           ],
           "icon": "plane",
           "icon_path": null,
-          "node_id": "flight_2",
-          "t_start": 85,
+          "node_id": "flight_5",
+          "t_start": 75,
           "t_end": 160,
-          "label": "神戸空港",
+          "label": "出雲空港",
           "popup": true
         },
         {
           "kind": "wait",
           "at": [
-            135.2287,
-            34.636826
+            132.886056,
+            35.414861
           ],
           "icon": "wait",
           "t_start": 160,
-          "t_end": 190,
-          "label": "神戸空港(待ち時間)"
+          "t_end": 170,
+          "label": "出雲空港(待ち時間)"
         },
         {
           "kind": "straight",
           "from": [
-            135.2287,
-            34.636826
+            132.886056,
+            35.414861
           ],
           "to": [
-            135.1949,
-            34.6935
+            133.0505,
+            35.4723
           ],
-          "icon": "train",
+          "icon": "bus",
           "icon_path": null,
-          "node_id": "flight_3",
-          "t_start": 190,
-          "t_end": 208,
-          "label": "神戸",
+          "node_id": "flight_6",
+          "t_start": 170,
+          "t_end": 205,
+          "label": "松江",
           "popup": true
         }
       ]
