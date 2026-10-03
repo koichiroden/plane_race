@@ -1,0 +1,379 @@
+{
+  "slug": "osaka_kochi",
+  "title_line1": "大阪 → 高知",
+  "title_line2": "新幹線 vs 飛行機 どっちが早い!?",
+  "start_name": "新大阪",
+  "end_label": "高知",
+  "video_duration_sec": 30,
+  "intro_sec": 2,
+  "outro_hold_sec": 4,
+  "map_extent": "japan",
+  "geojson_path": null,
+  "routes": [
+    {
+      "key": "route_a",
+      "mode": "legs",
+      "name": "新大阪 → 高知",
+      "short_name": "鉄道",
+      "color": [
+        255,
+        106,
+        69
+      ],
+      "start_label": "新大阪",
+      "popup_start": true,
+      "legs": [
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              135.46812,
+              34.7234
+            ],
+            [
+              135.45773,
+              34.72561
+            ],
+            [
+              135.43955,
+              34.7545
+            ],
+            [
+              135.41887,
+              34.7668
+            ],
+            [
+              135.32439,
+              34.76586
+            ],
+            [
+              135.23682,
+              34.7388
+            ],
+            [
+              135.18889,
+              34.70395
+            ],
+            [
+              135.00312,
+              34.66527
+            ],
+            [
+              134.95526,
+              34.66757
+            ],
+            [
+              134.9363,
+              34.6724
+            ],
+            [
+              134.88223,
+              34.70857
+            ],
+            [
+              134.72755,
+              34.82068
+            ],
+            [
+              134.63709,
+              34.83107
+            ],
+            [
+              134.55696,
+              34.82997
+            ],
+            [
+              134.51562,
+              34.81942
+            ],
+            [
+              134.44541,
+              34.81722
+            ],
+            [
+              134.3723,
+              34.78254
+            ],
+            [
+              134.30587,
+              34.77687
+            ],
+            [
+              134.23245,
+              34.75422
+            ],
+            [
+              134.17962,
+              34.74992
+            ],
+            [
+              134.03957,
+              34.7088
+            ],
+            [
+              133.9962,
+              34.6878
+            ],
+            [
+              133.92906,
+              34.68037
+            ],
+            [
+              133.90913,
+              34.66002
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_19",
+          "t_start": 0,
+          "t_end": 45,
+          "label": "岡山",
+          "popup": true
+        },
+        {
+          "kind": "wait",
+          "at": [
+            133.91917,
+            34.66742
+          ],
+          "icon": "wait",
+          "t_start": 45,
+          "t_end": 57,
+          "label": "岡山(待ち時間)"
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.91917,
+              34.66742
+            ],
+            [
+              133.828,
+              34.3104
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_20",
+          "t_start": 57,
+          "t_end": 91,
+          "label": "宇多津",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.828,
+              34.3104
+            ],
+            [
+              133.753,
+              34.272
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_20",
+          "t_start": 91,
+          "t_end": 99,
+          "label": "多度津",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.753,
+              34.272
+            ],
+            [
+              133.8192,
+              34.1875
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_20",
+          "t_start": 99,
+          "t_end": 111,
+          "label": "琴平",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.8192,
+              34.1875
+            ],
+            [
+              133.806,
+              34.0275
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_20",
+          "t_start": 111,
+          "t_end": 136,
+          "label": "阿波池田",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.806,
+              34.0275
+            ],
+            [
+              133.767,
+              33.878
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_20",
+          "t_start": 136,
+          "t_end": 154,
+          "label": "大歩危",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.767,
+              33.878
+            ],
+            [
+              133.6314,
+              33.5969
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_20",
+          "t_start": 154,
+          "t_end": 198,
+          "label": "土佐山田",
+          "popup": true
+        },
+        {
+          "kind": "coords",
+          "coords": [
+            [
+              133.6314,
+              33.5969
+            ],
+            [
+              133.5311,
+              33.5597
+            ]
+          ],
+          "icon": "train",
+          "icon_path": null,
+          "node_id": "rail_20",
+          "t_start": 198,
+          "t_end": 210,
+          "label": "高知",
+          "popup": true
+        }
+      ]
+    },
+    {
+      "key": "route_b",
+      "mode": "legs",
+      "name": "新大阪 → 高知",
+      "short_name": "飛行機",
+      "color": [
+        79,
+        195,
+        247
+      ],
+      "start_label": "新大阪",
+      "popup_start": true,
+      "legs": [
+        {
+          "kind": "straight",
+          "from": [
+            135.49782,
+            34.73293
+          ],
+          "to": [
+            135.440444,
+            34.791361
+          ],
+          "icon": "bus",
+          "icon_path": null,
+          "node_id": "flight_26",
+          "t_start": 0,
+          "t_end": 20,
+          "label": "大阪国際空港",
+          "popup": true
+        },
+        {
+          "kind": "wait",
+          "at": [
+            135.440444,
+            34.791361
+          ],
+          "icon": "wait",
+          "t_start": 20,
+          "t_end": 55,
+          "label": "大阪国際空港(待ち時間)"
+        },
+        {
+          "kind": "great_circle",
+          "from": [
+            135.440444,
+            34.791361
+          ],
+          "to": [
+            133.674278,
+            33.547333
+          ],
+          "icon": "plane",
+          "icon_path": null,
+          "node_id": "flight_27",
+          "t_start": 55,
+          "t_end": 100,
+          "label": "高知空港",
+          "popup": true
+        },
+        {
+          "kind": "wait",
+          "at": [
+            133.674278,
+            33.547333
+          ],
+          "icon": "wait",
+          "t_start": 100,
+          "t_end": 115,
+          "label": "高知空港(待ち時間)"
+        },
+        {
+          "kind": "straight",
+          "from": [
+            133.674278,
+            33.547333
+          ],
+          "to": [
+            133.5311,
+            33.5597
+          ],
+          "icon": "bus",
+          "icon_path": null,
+          "node_id": "flight_28",
+          "t_start": 115,
+          "t_end": 140,
+          "label": "高知",
+          "popup": true
+        }
+      ]
+    }
+  ]
+}
